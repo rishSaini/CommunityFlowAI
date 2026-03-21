@@ -17,6 +17,7 @@ from app.models.schemas import (
 from app.models.tables import Request, User
 from app.services.brief_service import generate_job_brief
 from app.services.dispatch_service import get_dispatch_candidates
+from app.services.twilio_service import notify_dispatch
 from app.services.ws_manager import manager
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,12 @@ async def assign_dispatch(
             "staff_id": body.staff_id,
         }
     )
+
+    # Send Twilio notification (non-blocking — assignment already committed)
+    try:
+        await notify_dispatch(request, staff_user, db)
+    except Exception as exc:
+        logger.warning("Twilio notification failed for request %s: %s", request_id, exc)
 
     # Generate Job Brief (non-blocking — assignment already committed)
     try:

@@ -300,6 +300,12 @@ class StatusTrackerResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+# ── Urgency Override ──────────────────────────────────────
+
+class UrgencyOverrideRequest(BaseModel):
+    urgency_level: str  # "low" | "medium" | "high" | "critical"
+
+
 # ── Notification Log ──────────────────────────────────────
 
 class NotificationLogResponse(BaseModel):
