@@ -32,6 +32,7 @@ const EMPTY_FORM: FormData = {
   event_zip: "",
   county: "",
   fulfillment_type: "",
+  mailing_address: "",
   estimated_attendees: "",
   materials_requested: [],
   special_instructions: "",

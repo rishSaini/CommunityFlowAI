@@ -55,6 +55,7 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
 
     try {
       // Build the request payload matching the backend schema
+      const fType = form.fulfillment_type || "staff";
       const payload = {
         requestor_name:       form.requestor_name,
         requestor_email:      form.requestor_email,
@@ -64,7 +65,8 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
         event_time:           form.event_time || null,
         event_city:           form.event_city,
         event_zip:            form.event_zip,
-        fulfillment_type:     form.fulfillment_type || "mail",
+        fulfillment_type:     fType,
+        mailing_address:      fType === "mail" ? (form.mailing_address || `${form.event_city}, UT ${form.event_zip}`) : null,
         estimated_attendees:  parseInt(form.estimated_attendees) || null,
         materials_requested:  form.materials_requested,
         special_instructions: form.special_instructions || null,
@@ -115,7 +117,8 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
     form.county &&
     form.event_zip &&
     form.estimated_attendees &&
-    form.materials_requested.length > 0;
+    form.materials_requested.length > 0 &&
+    (form.fulfillment_type !== "mail" || form.mailing_address);
 
   // Flash = autofilled by chatbot → gentle sage highlight
   const flash = (field: FlashField) =>
@@ -345,6 +348,24 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
           })}
         </div>
       </div>
+
+      {/* Mailing address — only when mail fulfillment */}
+      {form.fulfillment_type === "mail" && (
+        <div>
+          <label className={labelBase}>Mailing Address *</label>
+          <div className="relative">
+            <MapPin size={14} className={iconLeft} />
+            <input
+              type="text" value={form.mailing_address}
+              onChange={(e) => set("mailing_address", e.target.value)}
+              placeholder="123 Main St, Salt Lake City, UT 84101"
+              className={`${inputBase} pl-9 pr-4 ${flash("mailing_address" as keyof FormData)}`}
+              required
+            />
+          </div>
+          <p className="text-[10px] text-ink-faint mt-1">Where should materials be shipped?</p>
+        </div>
+      )}
 
       {/* Resources Needed */}
       <div>

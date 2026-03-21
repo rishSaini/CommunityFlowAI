@@ -38,6 +38,7 @@ export interface FormData {
   event_zip: string;
   county: string;
   fulfillment_type: "staff" | "mail" | "pickup" | "";
+  mailing_address: string;
   estimated_attendees: string;
   materials_requested: string[];
   special_instructions: string;
