@@ -63,7 +63,7 @@ function AuthenticatedApp() {
         county: "",
         attendeeCount: r.estimated_attendees ?? 0,
         needs: r.materials_requested ?? [],
-        priorityScore: r.priority_score ?? 50,
+        priorityScore: r.ai_priority_score ?? 50,
         impactLevel: r.urgency_level === "high" ? "High" : r.urgency_level === "medium" ? "Medium" : "Low",
         tags: r.ai_tags ?? [],
         fulfillmentMethod: r.fulfillment_type === "staff" ? "Staffed" : "Mailed",
@@ -98,7 +98,7 @@ function AuthenticatedApp() {
     setRequests((p) => [req, ...p]);
     setBanner(req);
     setTimeout(() => setBanner(null), 5000);
-    setTimeout(() => setView("dashboard"), 1400);
+    setTimeout(() => setView(isAdmin ? "dashboard" : "staff"), 1400);
     setForm(EMPTY_FORM);
   };
 
@@ -108,12 +108,13 @@ function AuthenticatedApp() {
   const ALL_TABS: NavTab[] = [
     { id: "intake",    label: "Submit Request",  icon: FileInput       },
     { id: "dashboard", label: "Admin Dashboard", icon: LayoutDashboard, adminOnly: true },
-    { id: "staff",     label: "Staff Portal",    icon: Stethoscope,     staffOnly: false },
+    { id: "staff",     label: "Staff Portal",    icon: Stethoscope,     staffOnly: true },
     { id: "profiles",  label: "Profiles",        icon: Users,           adminOnly: true  },
   ];
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.adminOnly && !isAdmin) return false;
+    if (t.staffOnly && !isStaff && !isAdmin) return false;
     return true;
   });
 
@@ -343,7 +344,7 @@ function AuthenticatedApp() {
         )}
 
         {/* ── DASHBOARD VIEW ──────────────────────────────────────────── */}
-        {view === "dashboard" && (
+        {view === "dashboard" && isAdmin && (
           <div className="animate-fade-in space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -384,10 +385,10 @@ function AuthenticatedApp() {
         )}
 
         {/* ── STAFF VIEW ──────────────────────────────────────────────── */}
-        {view === "staff" && <StaffDashboard />}
+        {view === "staff" && (isStaff || isAdmin) && <StaffDashboard />}
 
         {/* ── PROFILES VIEW ───────────────────────────────────────────── */}
-        {view === "profiles" && <AdminProfiles />}
+        {view === "profiles" && isAdmin && <AdminProfiles />}
 
       </main>
 

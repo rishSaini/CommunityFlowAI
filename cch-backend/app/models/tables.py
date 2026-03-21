@@ -191,3 +191,66 @@ class NotificationLog(Base):
     __table_args__ = (
         Index("idx_notification_log_request", "request_id"),
     )
+
+
+# ── Table 7: shift_assignments ────────────────────────────
+# Per-date concrete shifts for calendar scheduling.
+
+class ShiftAssignment(Base):
+    __tablename__ = "shift_assignments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    start_time = Column(String, nullable=False)              # HH:MM
+    end_time = Column(String, nullable=False)                # HH:MM
+    location_id = Column(String, ForeignKey("locations.id"), nullable=True)
+    shift_type = Column(String, default="regular")           # regular | on_call | overtime | cover | training
+    status = Column(String, default="scheduled")             # scheduled | confirmed | completed | cancelled
+    request_id = Column(String, ForeignKey("requests.id"), nullable=True)
+    color = Column(String, nullable=True)                    # hex color override
+    notes = Column(Text, nullable=True)
+    created_by = Column(String, nullable=True)               # admin user ID who created
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("idx_shift_user_date", "user_id", "date"),
+        Index("idx_shift_date", "date"),
+        Index("idx_shift_status", "status"),
+    )
+
+
+# ── Table 8: request_assignments (multi-staff) ────────────
+# Many-to-many: multiple staff can be assigned to one request.
+
+class RequestAssignment(Base):
+    __tablename__ = "request_assignments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    request_id = Column(String, ForeignKey("requests.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    role = Column(String, default="primary")                 # primary | support | observer
+    assigned_at = Column(DateTime, default=func.now())
+    assigned_by = Column(String, nullable=True)              # admin user ID
+    notes = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("idx_ra_request", "request_id"),
+        Index("idx_ra_user", "user_id"),
+    )
+
+
+# ── Table 9: shift_templates ──────────────────────────────
+# Reusable shift presets for quick calendar scheduling.
+
+class ShiftTemplate(Base):
+    __tablename__ = "shift_templates"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String, nullable=False)
+    start_time = Column(String, nullable=False)              # HH:MM
+    end_time = Column(String, nullable=False)                # HH:MM
+    color = Column(String, default="#6366f1")
+    is_default = Column(Boolean, default=False)
+    created_by = Column(String, nullable=True)
