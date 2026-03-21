@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ClipboardList, Calendar, MapPin, Settings,
   CheckCircle2, Clock, Users, ChevronDown,
   Circle, Activity, BarChart3,
 } from "lucide-react";
 import TaskCard from "../components/schedule/TaskCard";
+import TaskDetailModal from "../components/schedule/TaskDetailModal";
 import WeeklySchedule from "../components/schedule/WeeklySchedule";
 import AvailabilityInput from "../components/schedule/AvailabilityInput";
 import EmployeePersonalCalendar from "../components/calendar/EmployeePersonalCalendar";
 import StaffTaskMap from "../components/map/StaffTaskMap";
 import { mockStaffProfiles, mockStaffTasks } from "../data/mockData";
 import { useAuth } from "../context/AuthContext";
+import { requestsApi } from "../lib/api";
+import type { RequestResponse } from "../lib/api";
 import type { StaffProfile, StaffTask, TaskStatus, StaffStatus } from "../types/index";
 
 type Tab = "tasks" | "schedule" | "map" | "profile";
@@ -57,9 +60,83 @@ export default function StaffDashboard() {
   const [tasks, setTasks]     = useState<StaffTask[]>(mockStaffTasks);
   const [tab, setTab]         = useState<Tab>("tasks");
   const [statusOpen, setStatusOpen] = useState(false);
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
 
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) =>
+  // Load tasks from backend API for the logged-in employee
+  useEffect(() => {
+    if (!user) return;
+    requestsApi.list(1, 100).then((data) => {
+      const mapped: StaffTask[] = data.requests
+        .filter((r: RequestResponse) =>
+          r.assigned_staff_id && r.status !== "cancelled" && r.fulfillment_type === "staff"
+        )
+        .map((r: RequestResponse) => {
+          const urgency = r.urgency_level || "low";
+          const priority: StaffTask["priority"] =
+            urgency === "critical" || urgency === "high" ? "High"
+            : urgency === "medium" ? "Medium" : "Low";
+
+          // Map backend status to task status
+          let taskStatus: TaskStatus = "pending";
+          if (r.status === "dispatched") taskStatus = "accepted";
+          else if (r.status === "in_progress") taskStatus = "in_progress";
+          else if (r.status === "fulfilled") taskStatus = "complete";
+
+          // Extract travel minutes from travel_info or dispatch_recommendation
+          let travelMins = 0;
+          if (r.travel_info?.duration_sec) {
+            travelMins = Math.round(r.travel_info.duration_sec / 60);
+          } else if (r.dispatch_recommendation?.travel_time) {
+            const match = r.dispatch_recommendation.travel_time.match(/(\d+)/);
+            if (match) travelMins = parseInt(match[1], 10);
+          }
+
+          return {
+            id: r.id,
+            requestId: r.id,
+            partnerName: r.event_name,
+            location: `${r.event_city}, UT ${r.event_zip}`,
+            city: r.event_city,
+            county: "",
+            coordinates: [r.event_lng ?? -111.89, r.event_lat ?? 40.76] as [number, number],
+            eventDate: r.event_date,
+            eventTime: r.event_time ?? "",
+            needs: (r.materials_requested ?? []).map((m: string | { material_id: string; quantity: number }) =>
+              typeof m === "string" ? m : m.material_id
+            ),
+            status: taskStatus,
+            priority,
+            attendeeCount: r.estimated_attendees ?? 0,
+            fulfillmentMethod: "Staffed" as const,
+            travelMinutes: travelMins,
+            notes: r.special_instructions ?? r.ai_summary ?? "",
+            isShared: r.assigned_staff_id !== user?.id,
+          };
+        });
+      if (mapped.length > 0) setTasks(mapped);
+    }).catch(() => {
+      // Keep mock data if backend unavailable
+    });
+  }, [user]);
+
+  const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
+    // Update local state immediately
     setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
+
+    // Map task status back to backend request status
+    const backendStatus =
+      newStatus === "accepted" ? "dispatched"
+      : newStatus === "in_progress" ? "in_progress"
+      : newStatus === "complete" ? "fulfilled"
+      : "submitted";
+
+    try {
+      await requestsApi.updateStatus(taskId, backendStatus);
+    } catch {
+      // Revert on failure
+      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: t.status } : t));
+    }
+  };
 
   const handleStatusToggle = (s: StaffStatus) => {
     setProfile((p) => ({ ...p, status: s }));
@@ -207,7 +284,7 @@ export default function StaffDashboard() {
                     </div>
                     <div className="px-3 pb-3 space-y-2">
                       {group.map((t) => (
-                        <TaskCard key={t.id} task={t} onStatusChange={handleStatusChange} />
+                        <TaskCard key={t.id} task={t} onStatusChange={handleStatusChange} onTaskClick={setDetailRequestId} />
                       ))}
                     </div>
                   </div>
@@ -317,6 +394,14 @@ export default function StaffDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Task Detail Modal */}
+      {detailRequestId && (
+        <TaskDetailModal
+          requestId={detailRequestId}
+          onClose={() => setDetailRequestId(null)}
+        />
       )}
     </div>
   );

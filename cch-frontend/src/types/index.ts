@@ -90,6 +90,7 @@ export interface StaffTask {
   fulfillmentMethod: FulfillmentMethod;
   travelMinutes: number;
   notes: string;
+  isShared?: boolean;
 }
 
 // ── Shift Assignments (Calendar) ─────────────────────────────

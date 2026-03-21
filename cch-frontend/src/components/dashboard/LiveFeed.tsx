@@ -4,6 +4,7 @@ import {
   Package, UserCheck, ChevronDown, ChevronUp, Clock,
 } from "lucide-react";
 import type { ResourceRequest, ImpactLevel } from "../../types/index";
+import MaterialBadge from "../ui/MaterialBadge";
 
 const IMPACT: Record<ImpactLevel, { ring: string; badge: string; bar: string }> = {
   High:   { ring: "border-rose-200   bg-rose-50/60",   badge: "bg-rose-100   text-rose-700",   bar: "#f43f5e" },
@@ -121,6 +122,15 @@ function RequestCard({ request, rank }: { request: ResourceRequest; rank: number
           </span>
         ))}
       </div>
+
+      {/* Materials */}
+      {request.needs.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {request.needs.map((n) => (
+            <MaterialBadge key={n} name={n} size="sm" />
+          ))}
+        </div>
+      )}
 
       {/* AI Reasoning toggle */}
       <button

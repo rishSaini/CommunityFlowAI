@@ -916,6 +916,23 @@ def seed_employee_tasks(db, location_map, staff_list, material_ids):
          date(2026, 3, 26), "09:00", "Salt Lake City", "84119", 40.695, -111.935,
          "staff", "high", 250, 71, "approved"),
 
+        # ── EMILY — April showcase tasks (the 5 from the staff task queue) ──
+        (emily, "San Juan School District Health Fair",
+         date(2026, 4, 15), "09:00", "Blanding", "84511", 37.624, -109.479,
+         "staff", "high", 320, 88, "dispatched"),
+        (emily, "Grand County Public Library Wellness Day",
+         date(2026, 4, 22), "10:00", "Moab", "84532", 38.573, -109.549,
+         "staff", "high", 180, 74, "dispatched"),
+        (emily, "Emery County Clinic Community Health",
+         date(2026, 4, 28), "13:00", "Castle Dale", "84513", 38.987, -111.019,
+         "staff", "high", 140, 72, "dispatched"),
+        (emily, "Tooele Valley Community Center Outreach",
+         date(2026, 4, 18), "14:00", "Tooele", "84074", 40.531, -112.298,
+         "staff", "medium", 210, 58, "in_progress"),
+        (emily, "Cache Valley Wellness Fair",
+         date(2026, 4, 25), "08:30", "Logan", "84321", 41.735, -111.834,
+         "staff", "medium", 450, 65, "dispatched"),
+
         # ── JAMES (PT_W2) — Mon/Wed/Fri, Provo ──
         (james, "Material Pickup — YMCA",
          date(2026, 3, 16), None, "Provo", "84601", 40.232, -111.661,
@@ -974,7 +991,13 @@ def seed_employee_tasks(db, location_map, staff_list, material_ids):
             continue
 
         nearest = find_nearest_location(lat, lng, loc_list)
-        travel_min = random.randint(12, 40)
+        # Realistic travel time based on distance from employee's base
+        staff_user = db.query(User).filter(User.id == staff["id"]).first()
+        if staff_user and staff_user.current_lat and staff_user.current_lng:
+            dist_miles = haversine(staff_user.current_lat, staff_user.current_lng, lat, lng)
+            travel_min = max(10, int(dist_miles * 1.5))  # ~1.5 min/mile avg
+        else:
+            travel_min = random.randint(15, 45)
 
         req = dict(
             id=uid(),
@@ -1018,11 +1041,12 @@ def seed_employee_tasks(db, location_map, staff_list, material_ids):
 
         # Dispatch data for dispatched requests
         if status in ("dispatched", "in_progress"):
+            dist_miles = round(travel_min / 1.5, 1) if travel_min else 20
             req.update(
                 dispatch_recommendation={
                     "staff_id": staff["id"],
                     "travel_time": f"{travel_min} minutes",
-                    "distance": f"{random.uniform(5, 30):.1f} miles",
+                    "distance": f"{dist_miles} miles",
                     "classification": staff["classification"],
                     "rationale": f"Nearest available {staff['classification_display']} with capacity.",
                 },
@@ -1031,6 +1055,13 @@ def seed_employee_tasks(db, location_map, staff_list, material_ids):
                     "briefing": f"Support {event_name} in {city}. {f'Prepare materials for {attendees} attendees.' if attendees else 'Confirm materials before departure.'}",
                     "weather_note": "Check forecast closer to event date.",
                     "traffic_tip": "Standard traffic patterns expected.",
+                },
+                travel_info={
+                    "duration_sec": travel_min * 60,
+                    "duration_text": f"{travel_min} mins",
+                    "distance_m": int(dist_miles * 1609),
+                    "distance_text": f"{dist_miles} mi",
+                    "traffic_text": "Normal conditions",
                 },
             )
 

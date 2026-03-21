@@ -88,6 +88,8 @@ export interface RequestResponse {
   special_instructions?: string;
   assigned_staff_id?: string;
   chatbot_used?: boolean;
+  travel_info?: { duration_sec?: number; duration_text?: string; distance_text?: string };
+  dispatch_recommendation?: { travel_time?: string; distance?: string };
   created_at: string;
   updated_at?: string;
 }
@@ -141,6 +143,12 @@ export const requestsApi = {
 
   statusTracker: (token: string) =>
     req(`/requests/status/${token}`, {}, false),
+
+  share: (requestId: string, email: string) =>
+    req<import("../types/index").RequestAssignmentInfo>(`/requests/${requestId}/share`, {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
 };
 
 // ── Chatbot ───────────────────────────────────────────────────────────────

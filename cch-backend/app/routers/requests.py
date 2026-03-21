@@ -22,10 +22,13 @@ from app.models.schemas import (
     RequestCreate,
     RequestListResponse,
     RequestResponse,
+    RequestAssignmentResponse,
+    ShareRequest,
     StatusTrackerResponse,
     StatusUpdateRequest,
 )
-from app.models.tables import Request, ServiceAreaZip, User
+from sqlalchemy import or_
+from app.models.tables import Request, RequestAssignment, ServiceAreaZip, User
 from app.services.ai_service import classify_request
 from app.services.geo_service import assign_nearest_location, geocode_address
 from app.services.twilio_service import send_partner_confirmation, send_partner_status_update
@@ -232,9 +235,19 @@ def list_requests(
     """
     query = db.query(Request)
 
-    # Role-based filtering
+    # Role-based filtering — staff see primary + shared assignments
     if current_user.role == "staff":
-        query = query.filter(Request.assigned_staff_id == current_user.id)
+        assigned_via_team = (
+            db.query(RequestAssignment.request_id)
+            .filter(RequestAssignment.user_id == current_user.id)
+            .subquery()
+        )
+        query = query.filter(
+            or_(
+                Request.assigned_staff_id == current_user.id,
+                Request.id.in_(assigned_via_team),
+            )
+        )
 
     # Optional filters
     if status_filter is not None:
@@ -283,12 +296,21 @@ def get_request(
             detail="Request not found",
         )
 
-    # Staff may only access their own assigned requests
+    # Staff may only access their own assigned or shared requests
     if current_user.role == "staff" and request.assigned_staff_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have access to this request",
+        has_assignment = (
+            db.query(RequestAssignment)
+            .filter(
+                RequestAssignment.request_id == request_id,
+                RequestAssignment.user_id == current_user.id,
+            )
+            .first()
         )
+        if not has_assignment:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this request",
+            )
 
     return request
 
@@ -355,3 +377,99 @@ async def update_request_status(
         logger.warning("Partner status SMS failed for request %s: %s", request.id, exc)
 
     return request
+
+
+# ── Staff: Share Request with Another Staff Member ───────────
+
+
+@router.post("/requests/{request_id}/share", response_model=RequestAssignmentResponse)
+def share_request(
+    request_id: str,
+    body: ShareRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Share a request with another staff member by email.
+
+    The current user must be assigned to the request (primary or via team).
+    The target user must be an active staff member.
+    """
+    request = db.query(Request).filter(Request.id == request_id).first()
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Request not found",
+        )
+
+    # Verify current user has access to this request
+    is_primary = request.assigned_staff_id == current_user.id
+    has_assignment = (
+        db.query(RequestAssignment)
+        .filter(
+            RequestAssignment.request_id == request_id,
+            RequestAssignment.user_id == current_user.id,
+        )
+        .first()
+    )
+    if current_user.role != "admin" and not is_primary and not has_assignment:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this request",
+        )
+
+    # Look up target user by email
+    target_user = (
+        db.query(User)
+        .filter(User.email == body.email, User.role == "staff", User.is_active.is_(True))
+        .first()
+    )
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active staff account found for that email",
+        )
+
+    if target_user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot share a request with yourself",
+        )
+
+    # Check not already assigned
+    existing = (
+        db.query(RequestAssignment)
+        .filter(
+            RequestAssignment.request_id == request_id,
+            RequestAssignment.user_id == target_user.id,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This staff member is already assigned to this request",
+        )
+
+    # Create assignment
+    assignment = RequestAssignment(
+        request_id=request_id,
+        user_id=target_user.id,
+        role="support",
+        assigned_by=current_user.id,
+        notes=f"Shared by {current_user.full_name}",
+    )
+    db.add(assignment)
+    target_user.current_workload = (target_user.current_workload or 0) + 1
+    db.commit()
+    db.refresh(assignment)
+
+    return RequestAssignmentResponse(
+        id=assignment.id,
+        request_id=assignment.request_id,
+        user_id=assignment.user_id,
+        user_name=target_user.full_name,
+        user_classification=target_user.classification,
+        role=assignment.role,
+        assigned_at=assignment.assigned_at,
+        notes=assignment.notes,
+    )

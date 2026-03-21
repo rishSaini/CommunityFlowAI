@@ -87,6 +87,9 @@ class RequestResponse(BaseModel):
     ai_summary: Optional[str] = None
     ai_tags: Optional[list] = None
     ai_flags: Optional[dict] = None
+    dispatch_recommendation: Optional[dict] = None
+    travel_info: Optional[dict] = None
+    job_brief: Optional[dict] = None
     status_tracker_token: Optional[str] = None
     chatbot_used: bool = False
     created_at: datetime
@@ -103,6 +106,44 @@ class RequestListResponse(BaseModel):
 
 
 class StatusUpdateRequest(BaseModel):
+    status: str
+
+
+class ShareRequest(BaseModel):
+    email: str
+
+
+# ── Partner Messages (Direct Chat) ────────────────────────
+
+class MessageCreate(BaseModel):
+    content: str
+
+
+class MessageResponse(BaseModel):
+    id: str
+    request_id: str
+    sender_id: str
+    sender_name: str
+    sender_role: str
+    content: str
+    read_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChannelResponse(BaseModel):
+    request_id: str
+    event_name: str
+    event_date: date
+    event_city: str
+    partner_name: str
+    partner_id: str
+    staff_name: Optional[str] = None
+    staff_id: Optional[str] = None
+    last_message: Optional[str] = None
+    last_message_at: Optional[datetime] = None
+    unread_count: int = 0
     status: str
 
 

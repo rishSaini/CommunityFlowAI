@@ -4,10 +4,12 @@ import {
   CheckCircle2, ChevronDown, ChevronUp,
 } from "lucide-react";
 import type { StaffTask, TaskStatus } from "../../types/index";
+import MaterialBadge from "../ui/MaterialBadge";
 
 interface Props {
   task: StaffTask;
   onStatusChange: (taskId: string, status: TaskStatus) => void;
+  onTaskClick?: (requestId: string) => void;
 }
 
 const STATUS_DOT: Record<TaskStatus, string> = {
@@ -40,7 +42,7 @@ const ACTION: Record<string, { label: string; to: TaskStatus; style: string } | 
   conflict:    null,
 };
 
-export default function TaskCard({ task, onStatusChange }: Props) {
+export default function TaskCard({ task, onStatusChange, onTaskClick }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   const date    = new Date(task.eventDate + "T12:00:00");
@@ -61,10 +63,17 @@ export default function TaskCard({ task, onStatusChange }: Props) {
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[task.status]}`} />
 
             {/* Name */}
-            <p className="font-semibold text-ink text-sm truncate flex-1 min-w-0"
+            <button
+              onClick={() => onTaskClick?.(task.requestId)}
+              className="font-semibold text-ink text-sm truncate flex-1 min-w-0 text-left hover:text-sage-700 transition-colors cursor-pointer"
               style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>
               {task.partnerName}
-            </p>
+            </button>
+            {task.isShared && (
+              <span className="text-[9px] bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">
+                Shared
+              </span>
+            )}
 
             {/* Compact meta chips */}
             <div className="flex items-center gap-1.5 flex-shrink-0 text-[11px] text-ink-muted">
@@ -127,9 +136,7 @@ export default function TaskCard({ task, onStatusChange }: Props) {
               {task.needs.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {task.needs.map((n) => (
-                    <span key={n} className="text-[10px] bg-sage-50 text-sage-700 border border-sage-200 px-2 py-0.5 rounded-full font-medium">
-                      {n}
-                    </span>
+                    <MaterialBadge key={n} name={n} size="sm" />
                   ))}
                 </div>
               )}

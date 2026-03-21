@@ -8,6 +8,7 @@ import {
   Activity, AlertTriangle,
 } from "lucide-react";
 import { employeesApi, requestsApi } from "../lib/api";
+import MaterialBadge from "../components/ui/MaterialBadge";
 import type { UserResponse, RequestResponse } from "../lib/api";
 import NotificationCenter from "../components/notifications/NotificationCenter";
 
@@ -355,7 +356,7 @@ function PartnerRequestRow({
                 <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide mb-1.5">Materials Requested</p>
                 <div className="flex flex-wrap gap-1">
                   {request.materials_requested.map((m) => (
-                    <span key={m} className="text-[10px] bg-white border border-sand-200 text-ink-muted px-2 py-0.5 rounded-full">{m}</span>
+                    <MaterialBadge key={typeof m === "string" ? m : m.material_id} name={typeof m === "string" ? m : m.material_id} size="sm" />
                   ))}
                 </div>
               </div>

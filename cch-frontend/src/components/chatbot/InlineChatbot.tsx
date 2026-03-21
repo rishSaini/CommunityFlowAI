@@ -80,7 +80,8 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
   const [input, setInput]       = useState("");
   const [typing, setTyping]     = useState(false);
   const [highlights, setHighlights] = useState<string[]>([]);
-  const endRef   = useRef<HTMLDivElement>(null);
+  const endRef        = useRef<HTMLDivElement>(null);
+  const containerRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFirst  = useRef(true);
   // Keep API-format chat history for the backend
@@ -97,7 +98,9 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
     }), []);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
   }, [messages, typing]);
 
   const handleSend = async (text = input.trim()) => {
@@ -202,7 +205,7 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 custom-scroll min-h-0">
+      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 custom-scroll min-h-0">
         {messages.map((msg) => (
           <div
             key={msg.id}

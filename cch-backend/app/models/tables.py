@@ -244,6 +244,27 @@ class RequestAssignment(Base):
 # ── Table 9: shift_templates ──────────────────────────────
 # Reusable shift presets for quick calendar scheduling.
 
+# ── Table 10: partner_messages ────────────────────────────
+# Direct messaging between community partners and their assigned staff.
+
+class PartnerMessage(Base):
+    __tablename__ = "partner_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    request_id = Column(String, ForeignKey("requests.id"), nullable=False)
+    sender_id = Column(String, ForeignKey("users.id"), nullable=False)
+    sender_name = Column(String, nullable=False)
+    sender_role = Column(String, nullable=False)             # partner | staff | admin
+    content = Column(Text, nullable=False)
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    __table_args__ = (
+        Index("idx_pm_request", "request_id"),
+        Index("idx_pm_sender", "sender_id"),
+    )
+
+
 class ShiftTemplate(Base):
     __tablename__ = "shift_templates"
 
