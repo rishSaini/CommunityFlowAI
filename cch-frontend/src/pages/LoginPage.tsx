@@ -119,18 +119,12 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                     Submit a resource request or sign in to chat with your assigned CCH representative.
                   </p>
                 </div>
-                <div className="flex flex-col gap-2 mt-8">
-                  <button
-                    onClick={() => { setMode("partner"); setError(null); }}
-                    className="flex items-center justify-center gap-1.5 text-sm font-semibold text-white bg-sage-700 hover:bg-sage-800 px-4 py-2.5 rounded-xl transition-colors"
-                  >
-                    <Lock size={12} /> Sign in
-                  </button>
+                <div className="mt-8">
                   <button
                     onClick={onPartnerContinue}
-                    className="flex items-center justify-center gap-1.5 text-sm font-semibold text-sage-700 hover:text-sage-800 px-4 py-2 rounded-xl border border-sage-200 hover:border-sage-300 transition-colors"
+                    className="flex items-center justify-center gap-1.5 w-full text-sm font-semibold text-white bg-sage-700 hover:bg-sage-800 px-4 py-2.5 rounded-xl transition-colors"
                   >
-                    Continue as guest <ArrowRight size={14} />
+                    Continue as Guest <ArrowRight size={14} />
                   </button>
                 </div>
               </div>
