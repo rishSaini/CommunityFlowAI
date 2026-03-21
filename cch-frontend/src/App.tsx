@@ -48,7 +48,7 @@ function pushView(v: View) {
 }
 
 // ── Authenticated shell ────────────────────────────────────────────────────
-function AuthenticatedApp() {
+function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === "admin";
   const isStaff = user?.role === "staff";
@@ -271,6 +271,15 @@ function AuthenticatedApp() {
         {view === "intake" && (
           <div className="animate-fade-in space-y-6">
 
+            {!user && onBackToHome && (
+              <button
+                onClick={onBackToHome}
+                className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink transition-colors"
+              >
+                <ChevronRight size={12} className="rotate-180" /> Back to Home
+              </button>
+            )}
+
             {/* Editorial Hero */}
             <div className="bg-sage-900 relative overflow-hidden rounded-3xl shadow-lg">
               <div className="absolute inset-0 opacity-[0.04]"
@@ -478,7 +487,7 @@ function AppInner() {
     return <LoginPage onPartnerContinue={enterGuest} />;
   }
 
-  return <AuthenticatedApp />;
+  return <AuthenticatedApp onBackToHome={() => setGuestMode(false)} />;
 }
 
 export default function App() {
