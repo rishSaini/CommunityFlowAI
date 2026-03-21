@@ -395,12 +395,6 @@ export default function AdminTeamCalendar() {
             className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors">
             <Sparkles size={11} /> AI Suggestions
           </button>
-          <button onClick={() => setShowCoverage(!showCoverage)}
-            className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border transition-colors ${
-              showCoverage ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-sand-50 text-ink-muted border-sand-200 hover:bg-sand-100"
-            }`}>
-            <AlertTriangle size={11} /> Coverage
-          </button>
           <button onClick={loadData}
             className="flex items-center gap-1.5 text-[11px] text-ink-muted border border-sand-200 px-3 py-2 rounded-xl hover:bg-sand-50 transition-colors">
             <RefreshCw size={11} className={loading ? "animate-spin" : ""} /> Refresh
