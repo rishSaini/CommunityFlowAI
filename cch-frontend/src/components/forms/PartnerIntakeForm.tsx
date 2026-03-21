@@ -110,6 +110,7 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
   const isValid =
     form.requestor_name &&
     form.requestor_email &&
+    form.requestor_phone &&
     form.event_date &&
     form.event_city &&
     form.county &&
@@ -141,6 +142,11 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
             <p className="text-xs text-ink-muted mt-0.5">
               Priority score: <span className="font-bold text-sage-700">{savedScore}</span> · AI triage in progress
             </p>
+            {savedForm?.requestor_phone && (
+              <p className="text-[11px] text-sage-600 mt-1 flex items-center gap-1">
+                <Phone size={10} /> SMS confirmation sent to {savedForm.requestor_phone}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-sage-700 font-semibold">
             <Sparkles size={11} /> AI-powered
@@ -206,7 +212,7 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
           </div>
         </div>
         <div>
-          <label className={labelBase}>Phone</label>
+          <label className={labelBase}>Phone Number *</label>
           <div className="relative">
             <Phone size={14} className={iconLeft} />
             <input
@@ -214,8 +220,10 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
               onChange={(e) => set("requestor_phone", e.target.value)}
               placeholder="(801) 555-0100"
               className={`${inputBase} pl-9 pr-3 ${flash("requestor_phone")}`}
+              required
             />
           </div>
+          <p className="text-[9px] text-ink-faint mt-0.5 ml-1">We'll text you a confirmation and event reminders</p>
         </div>
       </div>
 

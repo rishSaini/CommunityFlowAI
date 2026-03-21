@@ -48,8 +48,13 @@ export interface UserResponse {
   classification?: string;
   classification_display?: string;
   phone?: string;
+  assigned_location_ids?: string[];
   is_on_duty: boolean;
   is_active: boolean;
+  current_workload: number;
+  max_workload: number;
+  hire_date?: string;
+  created_at: string;
 }
 
 export interface TokenResponse {
@@ -72,12 +77,19 @@ export interface RequestResponse {
   event_time?: string;
   event_city: string;
   event_zip: string;
+  event_lat?: number;
+  event_lng?: number;
   estimated_attendees?: number;
   materials_requested?: Array<string | { material_id: string; quantity: number }>;
   ai_summary?: string;
   ai_tags?: string[];
+  ai_flags?: Record<string, unknown>;
+  priority_justification?: string;
   special_instructions?: string;
-  created_at?: string;
+  assigned_staff_id?: string;
+  chatbot_used?: boolean;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface RequestListResponse {
@@ -169,4 +181,177 @@ export const adminApi = {
 
   notificationLog: (page = 1) =>
     req(`/admin/notifications/log?page=${page}`),
+};
+
+// ── Notifications (SMS) ──────────────────────────────────────────────────
+export interface NotificationLogEntry {
+  id: string;
+  request_id: string | null;
+  recipient_phone: string | null;
+  recipient_name: string | null;
+  channel: string | null;
+  urgency_level: string | null;
+  message_body: string | null;
+  sent_at: string | null;
+  status: string;
+  queued_until: string | null;
+}
+
+export interface NotificationLogList {
+  notifications: NotificationLogEntry[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface SMSTemplate {
+  key: string;
+  template: string;
+  description: string;
+}
+
+export interface SendSMSResult {
+  success: boolean;
+  sid: string | null;
+  error: string | null;
+  message_preview: string;
+}
+
+export const notificationsApi = {
+  getLog: (page = 1, filters?: { channel?: string; status?: string; urgency?: string; search?: string }) => {
+    const params = new URLSearchParams({ page: String(page) });
+    if (filters?.channel) params.set("channel", filters.channel);
+    if (filters?.status) params.set("notification_status", filters.status);
+    if (filters?.urgency) params.set("urgency_level", filters.urgency);
+    if (filters?.search) params.set("search", filters.search);
+    return req<NotificationLogList>(`/notifications/log?${params}`);
+  },
+
+  getTemplates: () => req<SMSTemplate[]>("/notifications/templates"),
+
+  sendSMS: (toPhone: string, message: string, recipientName = "Manual", requestId?: string) =>
+    req<SendSMSResult>("/notifications/send-sms", {
+      method: "POST",
+      body: JSON.stringify({ to_phone: toPhone, message, recipient_name: recipientName, request_id: requestId }),
+    }),
+
+  sendTest: (toPhone: string) =>
+    req<SendSMSResult>("/notifications/test", {
+      method: "POST",
+      body: JSON.stringify({ to_phone: toPhone }),
+    }),
+};
+
+// ── Schedule & Calendar ──────────────────────────────────────────────────
+import type {
+  ShiftAssignment, ShiftTemplate, CalendarEmployee, CalendarTask,
+  CoverageCell, AIScheduleSuggestion, RequestAssignmentInfo,
+} from "../types/index";
+
+interface TeamCalendarData {
+  shifts: ShiftAssignment[];
+  tasks: CalendarTask[];
+  employees: CalendarEmployee[];
+}
+
+interface MyCalendarData {
+  shifts: ShiftAssignment[];
+  tasks: CalendarTask[];
+}
+
+interface CoverageData {
+  cells: CoverageCell[];
+  summary: { total_gaps: number; worst_day: string | null; suggestion_count: number };
+}
+
+interface AISuggestData {
+  suggestions: AIScheduleSuggestion[];
+  narrative: string;
+}
+
+export const scheduleApi = {
+  // Team calendar (admin)
+  getTeamCalendar: (start: string, end: string) =>
+    req<TeamCalendarData>(`/schedule/team?start=${start}&end=${end}`),
+
+  // Personal calendar (staff)
+  getMyCalendar: (start: string, end: string) =>
+    req<MyCalendarData>(`/schedule/me?start=${start}&end=${end}`),
+
+  // Shift CRUD
+  createShift: (data: {
+    user_id: string; date: string; start_time: string; end_time: string;
+    location_id?: string; shift_type?: string; request_id?: string;
+    color?: string; notes?: string;
+  }) =>
+    req<ShiftAssignment>("/schedule/shifts", { method: "POST", body: JSON.stringify(data) }),
+
+  createShiftsBulk: (shifts: Array<{
+    user_id: string; date: string; start_time: string; end_time: string;
+    location_id?: string; shift_type?: string; color?: string;
+  }>) =>
+    req<{ created: number; skipped: number }>("/schedule/shifts/bulk", {
+      method: "POST", body: JSON.stringify({ shifts }),
+    }),
+
+  updateShift: (id: string, data: Record<string, unknown>) =>
+    req<ShiftAssignment>(`/schedule/shifts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  deleteShift: (id: string) =>
+    req<{ message: string }>(`/schedule/shifts/${id}`, { method: "DELETE" }),
+
+  // Generate from patterns
+  generate: (startDate: string, endDate: string, userIds?: string[], overwrite = false) =>
+    req<{ created: number; skipped: number; details: string }>("/schedule/generate", {
+      method: "POST",
+      body: JSON.stringify({ start_date: startDate, end_date: endDate, user_ids: userIds, overwrite }),
+    }),
+
+  // Coverage
+  getCoverage: (start: string, end: string) =>
+    req<CoverageData>(`/schedule/coverage?start=${start}&end=${end}`),
+
+  // AI suggestions
+  getAISuggestions: (startDate: string, endDate: string) =>
+    req<AISuggestData>("/schedule/ai-suggest", {
+      method: "POST",
+      body: JSON.stringify({ start_date: startDate, end_date: endDate }),
+    }),
+
+  // Templates
+  getTemplates: () => req<ShiftTemplate[]>("/schedule/templates"),
+
+  createTemplate: (data: { name: string; start_time: string; end_time: string; color?: string }) =>
+    req<ShiftTemplate>("/schedule/templates", { method: "POST", body: JSON.stringify(data) }),
+
+  deleteTemplate: (id: string) =>
+    req<{ message: string }>(`/schedule/templates/${id}`, { method: "DELETE" }),
+};
+
+// ── Dispatch (multi-staff) ──────────────────────────────────────────────
+export const dispatchApi = {
+  getCandidates: (requestId: string) =>
+    req<{ candidates: unknown[]; cluster_opportunities: unknown[] }>(`/dispatch/${requestId}/candidates`),
+
+  assignTeam: (requestId: string, staffId: string, additionalStaffIds: string[] = [], roles?: Record<string, string>) =>
+    req<RequestResponse>(`/dispatch/${requestId}/assign`, {
+      method: "POST",
+      body: JSON.stringify({
+        staff_id: staffId,
+        additional_staff_ids: additionalStaffIds,
+        roles,
+      }),
+    }),
+
+  getTeam: (requestId: string) =>
+    req<RequestAssignmentInfo[]>(`/dispatch/${requestId}/team`),
+
+  addTeamMembers: (requestId: string, staffIds: string[], roles?: Record<string, string>) =>
+    req<{ added: unknown[]; count: number }>(`/dispatch/${requestId}/team/add`, {
+      method: "POST",
+      body: JSON.stringify({ staff_ids: staffIds, roles }),
+    }),
+
+  removeTeamMember: (requestId: string, userId: string) =>
+    req<{ message: string }>(`/dispatch/${requestId}/team/${userId}`, { method: "DELETE" }),
 };

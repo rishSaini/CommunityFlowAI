@@ -16,11 +16,17 @@ users ──────────────┐
   │                 │
   ▼                 ▼
 requests ◄────── locations
-  │                 │
-  │ request_id      │ location_id
-  ▼                 ▼
-notification_log   service_area_zips
+  │    ▲            │
+  │    │            │ location_id
+  │    │            ▼
+  │    │        service_area_zips
+  │    │
+  │ request_id ──► request_assignments ◄── users (multi-staff)
+  ▼
+notification_log
 
+shift_assignments ──► users, locations, requests
+shift_templates (standalone)
 materials_catalog (standalone — referenced by requests.materials_requested JSON)
 ```
 
@@ -177,6 +183,61 @@ Audit trail for all Twilio notifications.
 
 ---
 
+## Table: `shift_assignments`
+
+Per-date concrete shift records for calendar scheduling. Created by admin via drag-and-drop or auto-generation from weekly patterns.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | String (UUID) | PK |
+| user_id | String FK → users.id | Staff member |
+| date | Date | Specific shift date |
+| start_time | String | HH:MM |
+| end_time | String | HH:MM |
+| location_id | String FK → locations.id | Optional work location |
+| shift_type | String | `regular` \| `on_call` \| `overtime` \| `cover` \| `training` |
+| status | String | `scheduled` \| `confirmed` \| `completed` \| `cancelled` |
+| request_id | String FK → requests.id | If shift is tied to a specific request |
+| color | String | Hex color override for calendar display |
+| notes | Text | Admin notes |
+| created_by | String | Admin user ID who created the shift |
+| created_at | DateTime | `utcnow()` |
+| updated_at | DateTime | Auto-updated |
+
+---
+
+## Table: `request_assignments`
+
+Many-to-many join table enabling multi-staff assignment to requests.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | String (UUID) | PK |
+| request_id | String FK → requests.id | The request |
+| user_id | String FK → users.id | Assigned staff member |
+| role | String | `primary` \| `support` \| `observer` |
+| assigned_at | DateTime | `utcnow()` |
+| assigned_by | String | Admin user ID who assigned |
+| notes | Text | Optional assignment notes |
+
+---
+
+## Table: `shift_templates`
+
+Reusable shift presets (Morning, Afternoon, Full Day, etc.) for quick calendar scheduling.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | String (UUID) | PK |
+| name | String | Template name |
+| start_time | String | HH:MM |
+| end_time | String | HH:MM |
+| color | String | Hex color for display |
+| is_default | Boolean | System templates cannot be deleted |
+| created_by | String | Admin who created (null for defaults) |
+
+---
+
 ## Recommended Indexes
 
 ```sql
@@ -189,6 +250,11 @@ CREATE INDEX idx_requests_tracker_token ON requests(status_tracker_token);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_classification ON users(classification);
 CREATE INDEX idx_notification_log_request ON notification_log(request_id);
+CREATE INDEX idx_shift_user_date ON shift_assignments(user_id, date);
+CREATE INDEX idx_shift_date ON shift_assignments(date);
+CREATE INDEX idx_shift_status ON shift_assignments(status);
+CREATE INDEX idx_ra_request ON request_assignments(request_id);
+CREATE INDEX idx_ra_user ON request_assignments(user_id);
 ```
 
 ---
@@ -197,4 +263,5 @@ CREATE INDEX idx_notification_log_request ON notification_log(request_id);
 
 | Date | Author | Change |
 |------|--------|--------|
-| 2026-03-21 | Scaffold | Initial creation |
+| 2026-03-21 | Scaffold | Initial creation — 6 tables |
+| 2026-03-21 | Claude | Added `shift_assignments`, `request_assignments`, `shift_templates` tables (9 tables total). Updated ER diagram. Added 5 new indexes. |

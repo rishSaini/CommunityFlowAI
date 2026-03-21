@@ -84,7 +84,7 @@ def get_dispatch_candidates(request_id: str, db: Session) -> dict:
 
     for user in candidates:
         on_shift = is_on_shift_now(
-            user, check_date=event_date, check_time=event_time_obj
+            user, check_date=event_date, check_time=event_time_obj, db=db
         )
         on_call = is_in_on_call_rotation(
             user, check_date=event_date, check_time=event_time_obj
