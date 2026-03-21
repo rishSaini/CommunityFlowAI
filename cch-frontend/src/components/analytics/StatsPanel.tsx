@@ -1,3 +1,7 @@
+import {
+  ClipboardList, AlertCircle, Users, Zap,
+  MapPin, UserCheck, Package, Sparkles,
+} from "lucide-react";
 import type { ResourceRequest } from "../../types/index";
 
 interface Props { requests: ResourceRequest[]; }
@@ -6,24 +10,27 @@ interface StatCardProps {
   label: string;
   value: string | number;
   sub?: string;
-  gradient: string;
-  icon: string;
+  icon: React.ReactNode;
+  accent?: "sage" | "clay" | "default";
 }
 
-function StatCard({ label, value, sub, gradient, icon }: StatCardProps) {
+function StatCard({ label, value, sub, icon, accent = "default" }: StatCardProps) {
+  const iconBg =
+    accent === "sage"  ? "bg-sage-50 border-sage-200 text-sage-700"  :
+    accent === "clay"  ? "bg-clay-50 border-clay-200 text-clay-700"  :
+    "bg-sand-50 border-sand-200 text-ink-muted";
+
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm"
-          style={{ background: gradient }}
-        >
+    <div className="bg-white border border-sand-200 p-5 hover:border-sand-300 hover:shadow-sm transition-all duration-150">
+      <div className="mb-3">
+        <div className={`w-9 h-9 border flex items-center justify-center ${iconBg}`}>
           {icon}
         </div>
       </div>
-      <p className="text-2xl font-bold text-slate-800 tracking-tight leading-none">{value}</p>
-      <p className="text-xs font-semibold text-slate-500 mt-1">{label}</p>
-      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+      <p className="text-2xl font-semibold text-ink leading-none"
+        style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>{value}</p>
+      <p className="text-[11px] font-semibold text-ink-muted mt-1 uppercase tracking-wide">{label}</p>
+      {sub && <p className="text-[10px] text-ink-faint mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -39,14 +46,14 @@ export default function StatsPanel({ requests }: Props) {
   const equityScore  = total ? Math.round((underserved / total) * 100 * 0.6 + avgScore * 0.4) : 0;
 
   const stats: StatCardProps[] = [
-    { label: "Total Requests",      value: total,                    sub: "this period",               gradient: "linear-gradient(135deg,#e0e7ff,#c7d2fe)", icon: "📋" },
-    { label: "High Priority",       value: high,                     sub: `${total ? Math.round((high/total)*100) : 0}% of requests`,  gradient: "linear-gradient(135deg,#ffe4e6,#fecdd3)", icon: "🔴" },
-    { label: "Total Reach",         value: totalAttend.toLocaleString(), sub: "estimated attendees",   gradient: "linear-gradient(135deg,#d1fae5,#a7f3d0)", icon: "👥" },
-    { label: "Avg Priority Score",  value: avgScore,                 sub: "out of 100",                gradient: "linear-gradient(135deg,#fef3c7,#fde68a)", icon: "⚡" },
-    { label: "Rural / Underserved", value: underserved,              sub: `${total ? Math.round((underserved/total)*100) : 0}% share`, gradient: "linear-gradient(135deg,#fef9c3,#fef08a)", icon: "📍" },
-    { label: "Staffed Events",      value: staffed,                  sub: "require on-site team",      gradient: "linear-gradient(135deg,#ede9fe,#ddd6fe)", icon: "🧑‍⚕️" },
-    { label: "Mailed Packages",     value: mailed,                   sub: "materials only",            gradient: "linear-gradient(135deg,#e0f2fe,#bae6fd)", icon: "📦" },
-    { label: "Equity Impact Score", value: equityScore,              sub: "AI-computed metric",        gradient: "linear-gradient(135deg,#6366f1,#8b5cf6)", icon: "✨" },
+    { label: "Total Requests",      value: total,                        sub: "this period",                                              icon: <ClipboardList size={16} />, accent: "default" },
+    { label: "High Priority",       value: high,                         sub: `${total ? Math.round((high/total)*100) : 0}% of requests`, icon: <AlertCircle   size={16} />, accent: "clay"    },
+    { label: "Total Reach",         value: totalAttend.toLocaleString(), sub: "estimated attendees",                                      icon: <Users         size={16} />, accent: "sage"    },
+    { label: "Avg Priority Score",  value: avgScore,                     sub: "out of 100",                                               icon: <Zap           size={16} />, accent: "default" },
+    { label: "Rural / Underserved", value: underserved,                  sub: `${total ? Math.round((underserved/total)*100) : 0}% share`,icon: <MapPin        size={16} />, accent: "clay"    },
+    { label: "Staffed Events",      value: staffed,                      sub: "require on-site team",                                     icon: <UserCheck     size={16} />, accent: "sage"    },
+    { label: "Mailed Packages",     value: mailed,                       sub: "materials only",                                           icon: <Package       size={16} />, accent: "default" },
+    { label: "Equity Impact Score", value: equityScore,                  sub: "AI-computed metric",                                       icon: <Sparkles      size={16} />, accent: "sage"    },
   ];
 
   return (

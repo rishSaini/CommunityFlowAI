@@ -1,97 +1,144 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+/* ── Design Tokens ───────────────────────────────────────────────────────── */
+@theme {
+  /* Paper & Ink */
+  --color-paper:      #F9F8F6;
+  --color-ink:        #2C2A28;
+  --color-ink-muted:  #7A7471;
+  --color-ink-faint:  #B0AAA6;
+
+  /* Sage Green */
+  --color-sage-50:  #EEF2EF;
+  --color-sage-100: #D6E0D7;
+  --color-sage-200: #B5C9B7;
+  --color-sage-300: #8FAF92;
+  --color-sage-600: #6A7B6C;
+  --color-sage-700: #556159;
+  --color-sage-800: #3E4840;
+  --color-sage-900: #2A3228;
+
+  /* Terracotta Clay */
+  --color-clay-50:  #FBF1EB;
+  --color-clay-100: #F2DECE;
+  --color-clay-200: #E3C5B0;
+  --color-clay-400: #D4A78C;
+  --color-clay-600: #C28F77;
+  --color-clay-700: #A57260;
+
+  /* Warm Sand */
+  --color-sand-50:  #F5EDE0;
+  --color-sand-100: #EDE0D0;
+  --color-sand-200: #E6D5C3;
+  --color-sand-300: #D4C4AD;
+  --color-sand-400: #BFA994;
+
+  /* Fonts */
+  --font-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans:  "Outfit", system-ui, -apple-system, sans-serif;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: #f1f5f9;
-  color: #0f172a;
+  font-family: "Outfit", system-ui, -apple-system, sans-serif;
+  background: #F9F8F6;
+  color: #2C2A28;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
+}
+
+h1, h2, h3, h4, .serif {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 #root { width: 100%; min-height: 100vh; }
 
-/* ── Animations ── */
+/* ── Animations ─────────────────────────────────────────────────────────── */
 @keyframes ping-slow {
   0%   { transform: scale(1);   opacity: 0.85; }
   70%  { transform: scale(2.6); opacity: 0;    }
   100% { transform: scale(2.6); opacity: 0;    }
 }
 @keyframes slide-up {
-  from { transform: translateY(20px); opacity: 0; }
+  from { transform: translateY(16px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0);   }
-}
-@keyframes chat-open {
-  from { transform: scale(0.88) translateY(18px); opacity: 0; }
-  to   { transform: scale(1)    translateY(0);    opacity: 1; }
-}
-@keyframes shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
 }
 @keyframes bounce-dot {
   0%, 60%, 100% { transform: translateY(0);    }
   30%           { transform: translateY(-5px); }
 }
 @keyframes pulse-ring {
-  0%   { transform: scale(0.9); opacity: 1;   }
-  100% { transform: scale(2.2); opacity: 0;   }
-}
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 8px 0 rgba(239,68,68,0.4);  }
-  50%       { box-shadow: 0 0 18px 4px rgba(239,68,68,0.7); }
+  0%   { transform: scale(0.9); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
 .animate-ping-slow   { animation: ping-slow   2s   cubic-bezier(0,0,0.2,1) infinite; }
-.animate-slide-up    { animation: slide-up    0.35s ease-out      forwards; }
-.animate-fade-in     { animation: fade-in     0.3s  ease-out      forwards; }
-.animate-chat-open   { animation: chat-open   0.32s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-.animate-glow        { animation: glow        2s    ease-in-out   infinite; }
-.animate-pulse-ring  { animation: pulse-ring  1.8s  ease-out      infinite; }
+.animate-slide-up    { animation: slide-up    0.3s  ease-out forwards; }
+.animate-fade-in     { animation: fade-in     0.25s ease-out forwards; }
+.animate-pulse-ring  { animation: pulse-ring  1.8s  ease-out infinite; }
 
-/* ── Scrollbar ── */
-.custom-scroll::-webkit-scrollbar       { width: 4px; }
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
+.custom-scroll::-webkit-scrollbar       { width: 3px; }
 .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-.custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-.custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.custom-scroll::-webkit-scrollbar-thumb { background: #D4C4AD; border-radius: 4px; }
+.custom-scroll::-webkit-scrollbar-thumb:hover { background: #BFA994; }
 
-/* ── Glass card ── */
-.glass {
-  background: rgba(255,255,255,0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.9);
+/* ── Page background ────────────────────────────────────────────────────── */
+.page-bg {
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(106,123,108,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 100%, rgba(194,143,119,0.06) 0%, transparent 60%),
+    #F9F8F6;
 }
 
-/* ── Map tooltip ── */
-.map-tooltip { pointer-events: none; position: fixed; z-index: 9999; }
+/* ── Warm Glassmorphism ─────────────────────────────────────────────────── */
+.glass-warm {
+  background: rgba(249, 248, 246, 0.82);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(230, 213, 195, 0.7);
+  box-shadow: 0 4px 24px -4px rgba(44, 42, 40, 0.08), 0 1px 2px rgba(44, 42, 40, 0.04);
+}
 
-/* ── Score bar ── */
+/* ── Soft card ──────────────────────────────────────────────────────────── */
+.card-soft {
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(230, 213, 195, 0.6);
+  box-shadow: 0 2px 16px -4px rgba(44, 42, 40, 0.06);
+  border-radius: 1.5rem;
+}
+
+/* ── Score bar ──────────────────────────────────────────────────────────── */
 .score-bar-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: 2px;
   transition: width 0.8s cubic-bezier(0.34,1.56,0.64,1);
 }
 
-/* ── Gradient text ── */
+/* ── Map tooltip ─────────────────────────────────────────────────────────── */
+.map-tooltip { pointer-events: none; position: fixed; z-index: 9999; }
+
+/* ── Input resets ────────────────────────────────────────────────────────── */
+input, select, textarea {
+  font-family: "Outfit", system-ui, sans-serif;
+}
+
+/* ── Gradient text (legacy support) ─────────────────────────────────────── */
 .gradient-text {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #6A7B6C, #3E4840);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-/* ── Page bg ── */
-.page-bg {
-  background:
-    radial-gradient(ellipse 80% 60% at 20% -10%, rgba(99,102,241,0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(139,92,246,0.06) 0%, transparent 60%),
-    #f1f5f9;
 }

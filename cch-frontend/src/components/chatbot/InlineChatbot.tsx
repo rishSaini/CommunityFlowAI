@@ -18,7 +18,7 @@ interface Props {
 }
 
 const WELCOME =
-  `Hi! 👋 Tell me about your event in plain language and I'll fill the form for you.\n\nFor example: *"I'm from Hillcrest High School and we're hosting a mental health event for about 200 students on April 22nd."*`;
+  `Tell me about your event in plain language and I'll fill the form for you.\n\n*Example: "I'm from Hillcrest High School and we're hosting a mental health event for about 200 students on April 22nd."*`;
 
 const FIELD_DISPLAY: Record<FieldKey, string> = {
   name:          "Organization",
@@ -41,12 +41,12 @@ function ProgressBar({ form }: { form: FormData }) {
   return (
     <div className="px-4 pb-3">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] font-semibold text-slate-500">Form completion</span>
-        <span className="text-[11px] font-bold text-indigo-600">{pct}%</span>
+        <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide">Form completion</span>
+        <span className="text-[10px] font-bold text-sage-700">{pct}%</span>
       </div>
-      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div className="h-0.5 bg-sand-200 overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700 ease-out"
+          className="h-full bg-sage-600 transition-all duration-700 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -56,10 +56,10 @@ function ProgressBar({ form }: { form: FormData }) {
           return (
             <span
               key={f}
-              className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold transition-all duration-300 ${
+              className={`text-[10px] px-1.5 py-0.5 font-medium transition-all duration-300 ${
                 done
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-slate-100 text-slate-400"
+                  ? "bg-sage-50 text-sage-700 border border-sage-200"
+                  : "bg-sand-50 text-ink-faint border border-sand-200"
               }`}
             >
               {done ? "✓ " : ""}{FIELD_DISPLAY[f]}
@@ -90,12 +90,8 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
       }, delay);
     }), []);
 
-  // Welcome message on mount
-  useEffect(() => {
-    addBot(WELCOME, 400);
-  }, []);
+  useEffect(() => { addBot(WELCOME, 400); }, []);
 
-  // Scroll to bottom
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
@@ -109,17 +105,12 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
     const updates  = parsed.extracted;
     const detected = parsed.detectedFields;
 
-    // Merge updates into current form for reply generation
     const updatedForm: FormData = {
-      ...form,
-      ...updates,
-      needs: updates.needs ?? form.needs,
+      ...form, ...updates, needs: updates.needs ?? form.needs,
     };
 
-    // Apply autofill
     if (Object.keys(updates).length > 0) {
       onAutofill(updates);
-      // Briefly highlight the filled fields
       setHighlights(detected);
       setTimeout(() => setHighlights([]), 2500);
     }
@@ -140,59 +131,60 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
   const allDone = missing.length === 0;
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white border border-sand-200 overflow-hidden">
+
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3.5 flex items-center gap-3 flex-shrink-0">
-        <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-          <Bot size={16} className="text-white" />
+      <div className="bg-sage-800 px-4 py-3.5 flex items-center gap-3 flex-shrink-0">
+        <div className="w-7 h-7 bg-white/15 flex items-center justify-center flex-shrink-0">
+          <Bot size={14} className="text-paper" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-bold text-sm leading-tight">AI Form Assistant</p>
-          <p className="text-white/60 text-[11px]">
-            {allDone ? "All fields complete 🎉" : `${missing.length} field${missing.length !== 1 ? "s" : ""} remaining`}
+          <p className="text-paper font-semibold text-sm leading-tight">AI Form Assistant</p>
+          <p className="text-paper/50 text-[10px] tracking-wide">
+            {allDone ? "All fields complete" : `${missing.length} field${missing.length !== 1 ? "s" : ""} remaining`}
           </p>
         </div>
         <button
           onClick={handleReset}
-          className="p-1.5 rounded-xl bg-white/10 hover:bg-white/25 transition-colors flex-shrink-0"
+          className="p-1.5 hover:bg-white/10 transition-colors flex-shrink-0"
           title="Restart"
         >
-          <RotateCcw size={13} className="text-white/80" />
+          <RotateCcw size={12} className="text-paper/60" />
         </button>
       </div>
 
       {/* Progress bar */}
-      <div className="pt-3 flex-shrink-0">
+      <div className="pt-3 flex-shrink-0 border-b border-sand-100">
         <ProgressBar form={form} />
       </div>
 
-      {/* Highlights banner */}
+      {/* Autofill banner */}
       {highlights.length > 0 && (
-        <div className="mx-4 mb-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex items-center gap-2 animate-fade-in flex-shrink-0">
-          <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" />
-          <p className="text-[11px] text-emerald-700 font-semibold">
+        <div className="mx-4 my-2 bg-sage-50 border border-sage-200 px-3 py-2 flex items-center gap-2 animate-fade-in flex-shrink-0">
+          <CheckCircle2 size={12} className="text-sage-600 flex-shrink-0" />
+          <p className="text-[11px] text-sage-700 font-medium">
             Auto-filled: {highlights.map((f) => FIELD_LABELS[f as FieldKey] ?? f).join(", ")}
           </p>
         </div>
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3 custom-scroll min-h-0">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 custom-scroll min-h-0">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
           >
             {msg.role === "bot" && (
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 mr-2 mt-0.5 shadow-sm">
-                <Sparkles size={11} className="text-white" />
+              <div className="w-5 h-5 bg-sage-600 flex items-center justify-center flex-shrink-0 mr-2 mt-0.5">
+                <Sparkles size={10} className="text-paper" />
               </div>
             )}
             <div
-              className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
+              className={`max-w-[85%] px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
                 msg.role === "user"
-                  ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-tr-sm shadow-sm"
-                  : "bg-slate-50 text-slate-700 rounded-tl-sm border border-slate-100"
+                  ? "bg-ink text-paper"
+                  : "bg-sand-50 text-ink border border-sand-200"
               }`}
               dangerouslySetInnerHTML={{
                 __html: msg.role === "bot"
@@ -205,14 +197,14 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
 
         {typing && (
           <div className="flex items-start gap-2 animate-fade-in">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Sparkles size={11} className="text-white" />
+            <div className="w-5 h-5 bg-sage-600 flex items-center justify-center flex-shrink-0">
+              <Sparkles size={10} className="text-paper" />
             </div>
-            <div className="bg-slate-50 rounded-2xl rounded-tl-sm px-3 py-2 border border-slate-100 flex gap-1 items-center">
+            <div className="bg-sand-50 border border-sand-200 px-3 py-2 flex gap-1 items-center">
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-indigo-400"
+                  className="w-1.5 h-1.5 bg-sage-400"
                   style={{ animation: `bounce-dot 1.2s ${i * 0.18}s infinite` }}
                 />
               ))}
@@ -220,9 +212,9 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
           </div>
         )}
 
-        {/* Quick-fill chips when fields are missing */}
+        {/* Quick-fill chips */}
         {!typing && !allDone && messages.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pl-8 animate-fade-in">
+          <div className="flex flex-wrap gap-1.5 pl-7 animate-fade-in">
             {missing.slice(0, 3).map((f) => (
               <button
                 key={f}
@@ -239,7 +231,7 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
                   setInput(prompts[f]);
                   inputRef.current?.focus();
                 }}
-                className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-1 rounded-full font-semibold hover:bg-indigo-100 transition-colors"
+                className="text-[10px] bg-sage-50 text-sage-700 border border-sage-200 px-2 py-1 font-medium hover:bg-sage-100 transition-colors"
               >
                 + {FIELD_LABELS[f]}
               </button>
@@ -249,9 +241,9 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
 
         {allDone && !typing && (
           <div className="flex justify-center animate-fade-in">
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold px-3 py-2 rounded-full">
-              <CheckCircle2 size={13} />
-              All fields complete — ready to submit!
+            <div className="flex items-center gap-2 bg-sage-50 border border-sage-200 text-sage-700 text-xs font-semibold px-3 py-2">
+              <CheckCircle2 size={12} />
+              All fields complete — ready to submit
             </div>
           </div>
         )}
@@ -260,8 +252,8 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-slate-100 flex-shrink-0">
-        <div className="flex items-center gap-2 bg-slate-50 rounded-2xl pl-3.5 pr-1.5 py-1.5 border border-slate-200 focus-within:border-indigo-300 focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
+      <div className="p-3 border-t border-sand-200 flex-shrink-0">
+        <div className="flex items-center gap-2 bg-paper border border-sand-200 focus-within:border-sage-600 transition-all">
           <input
             ref={inputRef}
             type="text"
@@ -269,18 +261,18 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Describe your event…"
-            className="flex-1 bg-transparent text-xs text-slate-700 placeholder-slate-400 outline-none"
+            className="flex-1 bg-transparent text-xs text-ink placeholder-ink-faint outline-none px-3 py-2.5"
           />
           <button
             onClick={() => handleSend()}
             disabled={!input.trim() || typing}
-            className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${
+            className={`w-8 h-8 flex items-center justify-center transition-all flex-shrink-0 mr-1 ${
               input.trim() && !typing
-                ? "bg-gradient-to-br from-indigo-600 to-violet-600 hover:shadow-sm hover:shadow-indigo-200"
-                : "bg-slate-100"
+                ? "bg-sage-800 text-paper hover:bg-sage-900"
+                : "bg-sand-100 text-ink-faint"
             }`}
           >
-            <Send size={12} className={input.trim() && !typing ? "text-white" : "text-slate-400"} />
+            <Send size={11} />
           </button>
         </div>
       </div>
