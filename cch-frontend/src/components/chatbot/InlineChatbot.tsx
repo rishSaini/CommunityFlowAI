@@ -3,8 +3,10 @@ import { Send, Sparkles, RotateCcw, CheckCircle2, Bot } from "lucide-react";
 import {
   parseMessage, buildBotReply, getMissingFields, FIELD_LABELS,
 } from "../../lib/chatbotParser";
+import { chatbotApi } from "../../lib/api";
 import type { FormData } from "../../types/index";
 import type { FieldKey } from "../../lib/chatbotParser";
+import type { ChatMessage } from "../../lib/api";
 
 interface Message {
   id: number;
@@ -21,20 +23,20 @@ const WELCOME =
   `Tell me about your event in plain language and I'll fill the form for you.\n\n*Example: "I'm from Hillcrest High School and we're hosting a mental health event for about 200 students on April 22nd."*`;
 
 const FIELD_DISPLAY: Record<FieldKey, string> = {
-  name:          "Organization",
-  eventDate:     "Event Date",
-  city:          "City",
-  county:        "County",
-  zipCode:       "Zip Code",
-  attendeeCount: "Attendees",
-  needs:         "Resources",
+  requestor_name:      "Organization",
+  event_date:          "Event Date",
+  event_city:          "City",
+  county:              "County",
+  event_zip:           "Zip Code",
+  estimated_attendees: "Attendees",
+  materials_requested: "Resources",
 };
 
 function ProgressBar({ form }: { form: FormData }) {
-  const all: FieldKey[] = ["name", "eventDate", "city", "county", "zipCode", "attendeeCount", "needs"];
+  const all: FieldKey[] = ["requestor_name", "event_date", "event_city", "county", "event_zip", "estimated_attendees", "materials_requested"];
   const filled = all.filter((f) => {
-    if (f === "needs") return (form.needs?.length ?? 0) > 0;
-    return !!form[f];
+    if (f === "materials_requested") return (form.materials_requested?.length ?? 0) > 0;
+    return !!(form as Record<string, unknown>)[f];
   });
   const pct = Math.round((filled.length / all.length) * 100);
 
@@ -52,7 +54,7 @@ function ProgressBar({ form }: { form: FormData }) {
       </div>
       <div className="flex flex-wrap gap-1 mt-2">
         {all.map((f) => {
-          const done = f === "needs" ? (form.needs?.length ?? 0) > 0 : !!form[f];
+          const done = f === "materials_requested" ? (form.materials_requested?.length ?? 0) > 0 : !!(form as Record<string, unknown>)[f];
           return (
             <span
               key={f}
@@ -79,6 +81,8 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
   const endRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isFirst  = useRef(true);
+  // Keep API-format chat history for the backend
+  const chatHistory = useRef<ChatMessage[]>([]);
 
   const addBot = useCallback((text: string, delay = 700): Promise<void> =>
     new Promise((res) => {
@@ -101,12 +105,15 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
     setInput("");
     setMessages((p) => [...p, { id: Date.now(), role: "user", text }]);
 
+    // Always do local parse for instant field autofill
     const parsed   = parseMessage(text, form);
     const updates  = parsed.extracted;
     const detected = parsed.detectedFields;
 
     const updatedForm: FormData = {
-      ...form, ...updates, needs: updates.needs ?? form.needs,
+      ...form,
+      ...updates,
+      materials_requested: updates.materials_requested ?? form.materials_requested,
     };
 
     if (Object.keys(updates).length > 0) {
@@ -115,14 +122,40 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
       setTimeout(() => setHighlights([]), 2500);
     }
 
-    const reply = buildBotReply(parsed, updatedForm, isFirst.current);
-    isFirst.current = false;
-    await addBot(reply, detected.length > 0 ? 800 : 600);
+    // Try real backend chatbot; fall back to local parser reply
+    chatHistory.current.push({ role: "user", content: text });
+    try {
+      const currentFormState = Object.fromEntries(
+        Object.entries(updatedForm).filter(([, v]) => v !== "" && v !== null && (Array.isArray(v) ? v.length > 0 : true))
+      );
+      const res = await chatbotApi.sendMessage(chatHistory.current, currentFormState);
+
+      // Apply any field_updates from the backend
+      if (res.field_updates && Object.keys(res.field_updates).length > 0) {
+        const backendUpdates = res.field_updates as Partial<FormData>;
+        onAutofill(backendUpdates);
+        const newFields = Object.keys(backendUpdates);
+        setHighlights((h) => [...new Set([...h, ...newFields])]);
+        setTimeout(() => setHighlights([]), 2500);
+      }
+
+      const replyText = res.reply;
+      chatHistory.current.push({ role: "assistant", content: replyText });
+      setTyping(false);
+      setMessages((p) => [...p, { id: Date.now() + Math.random(), role: "bot", text: replyText }]);
+    } catch {
+      // Backend unavailable — fall back to local reply
+      const reply = buildBotReply(parsed, updatedForm, isFirst.current);
+      isFirst.current = false;
+      await addBot(reply, detected.length > 0 ? 800 : 600);
+    }
+
     inputRef.current?.focus();
   };
 
   const handleReset = () => {
     setMessages([]);
+    chatHistory.current = [];
     isFirst.current = true;
     setTimeout(() => addBot(WELCOME, 300), 100);
   };
@@ -220,13 +253,13 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
                 key={f}
                 onClick={() => {
                   const prompts: Record<FieldKey, string> = {
-                    name:          "We're from [Organization Name]",
-                    eventDate:     "The event is on April 22, 2026",
-                    city:          "It's in Salt Lake City",
-                    county:        "Salt Lake County",
-                    zipCode:       "Zip code is 84101",
-                    attendeeCount: "About 150 people will attend",
-                    needs:         "We need mental health resources",
+                    requestor_name:      "We're from [Organization Name]",
+                    event_date:          "The event is on April 22, 2026",
+                    event_city:          "It's in Salt Lake City",
+                    county:              "Salt Lake County",
+                    event_zip:           "Zip code is 84101",
+                    estimated_attendees: "About 150 people will attend",
+                    materials_requested: "We need mental health resources",
                   };
                   setInput(prompts[f]);
                   inputRef.current?.focus();

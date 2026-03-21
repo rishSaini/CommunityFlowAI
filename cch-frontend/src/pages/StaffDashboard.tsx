@@ -9,6 +9,7 @@ import WeeklySchedule from "../components/schedule/WeeklySchedule";
 import AvailabilityInput from "../components/schedule/AvailabilityInput";
 import StaffTaskMap from "../components/map/StaffTaskMap";
 import { mockStaffProfiles, mockStaffTasks } from "../data/mockData";
+import { useAuth } from "../context/AuthContext";
 import type { StaffProfile, StaffTask, TaskStatus, StaffStatus } from "../types/index";
 
 type Tab = "tasks" | "schedule" | "map" | "profile";
@@ -33,7 +34,25 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function StaffDashboard() {
-  const [profile, setProfile] = useState<StaffProfile>(mockStaffProfiles[0]);
+  const { user } = useAuth();
+
+  // Build a StaffProfile from authenticated user or fall back to mock
+  const authProfile: StaffProfile | null = user ? {
+    id:            user.id,
+    name:          user.full_name,
+    role:          user.classification_display ?? user.role,
+    email:         user.email,
+    phone:         user.phone ?? "",
+    address:       "",
+    city:          "",
+    county:        "",
+    coordinates:   [-111.89, 40.76],
+    availability:  mockStaffProfiles[0].availability,
+    maxTasksPerDay: 3,
+    status:        user.is_on_duty ? "available" : "off_duty",
+  } : null;
+
+  const [profile, setProfile] = useState<StaffProfile>(authProfile ?? mockStaffProfiles[0]);
   const [tasks, setTasks]     = useState<StaffTask[]>(mockStaffTasks);
   const [tab, setTab]         = useState<Tab>("tasks");
   const [statusOpen, setStatusOpen] = useState(false);

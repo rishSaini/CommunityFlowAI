@@ -3,9 +3,11 @@ import {
   Send, Loader2, CheckCircle2, Building2,
   CalendarDays, MapPin, Users, UserCheck,
   ChevronDown, Sparkles, Utensils, ShieldCheck,
-  Heart, Activity, Smile, Leaf,
+  Heart, Activity, Smile, Leaf, Mail, Phone,
+  Tag, FileText, Clock,
 } from "lucide-react";
-import { utahCountyData, triageRequest, countyCoordinates } from "../../data/mockData";
+import { utahCountyData, countyCoordinates, triageRequest } from "../../data/mockData";
+import { requestsApi } from "../../lib/api";
 import type { ResourceRequest, FormData } from "../../types/index";
 import PostGenerator from "../social/PostGenerator";
 
@@ -32,43 +34,88 @@ interface Props {
 }
 
 export default function PartnerIntakeForm({ form, onChange, flashFields = [], onSubmit, onReset }: Props) {
-  const [submitting, setSubmitting]   = useState(false);
-  const [submitted, setSubmitted]     = useState(false);
-  const [savedForm, setSavedForm]     = useState<FormData | null>(null);
-  const [savedScore, setSavedScore]   = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted]   = useState(false);
+  const [savedForm, setSavedForm]   = useState<FormData | null>(null);
+  const [savedScore, setSavedScore] = useState(0);
+  const [error, setError]           = useState<string | null>(null);
 
-  const set = (field: keyof FormData, value: string) =>
-    onChange({ [field]: value });
+  const set = (field: keyof FormData, value: string) => onChange({ [field]: value });
 
   const toggleNeed = (need: string) =>
     onChange({
-      needs: form.needs.includes(need)
-        ? form.needs.filter((n) => n !== need)
-        : [...form.needs, need],
+      materials_requested: form.materials_requested.includes(need)
+        ? form.materials_requested.filter((n) => n !== need)
+        : [...form.materials_requested, need],
     });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1800));
-    const triage = triageRequest({ ...form });
-    const coords = countyCoordinates[form.county] ?? [-111.5, 39.5];
-    onSubmit({
-      id: `req-${Date.now()}`,
-      ...form,
-      attendeeCount: parseInt(form.attendeeCount) || 0,
-      coordinates: coords as [number, number],
-      ...triage,
-      submittedAt: new Date().toISOString(),
-    });
-    setSavedForm({ ...form });
-    setSavedScore(triage.priorityScore);
-    setSubmitting(false);
-    setSubmitted(true);
+    setError(null);
+
+    try {
+      // Build the request payload matching the backend schema
+      const payload = {
+        requestor_name:       form.requestor_name,
+        requestor_email:      form.requestor_email,
+        requestor_phone:      form.requestor_phone,
+        event_name:           form.event_name || form.requestor_name,
+        event_date:           form.event_date,
+        event_time:           form.event_time || null,
+        event_city:           form.event_city,
+        event_zip:            form.event_zip,
+        fulfillment_type:     form.fulfillment_type || "mail",
+        estimated_attendees:  parseInt(form.estimated_attendees) || null,
+        materials_requested:  form.materials_requested,
+        special_instructions: form.special_instructions || null,
+      };
+
+      const response = await requestsApi.create(payload as Record<string, unknown>);
+
+      // Build local ResourceRequest for the dashboard (use backend fields + triage fallback)
+      const triage = triageRequest({ ...form });
+      const coords = countyCoordinates[form.county] ?? [-111.5, 39.5];
+
+      const req: ResourceRequest = {
+        id:              response.id,
+        name:            form.requestor_name,
+        eventDate:       form.event_date,
+        zipCode:         form.event_zip,
+        city:            form.event_city,
+        county:          form.county,
+        attendeeCount:   parseInt(form.estimated_attendees) || 0,
+        needs:           form.materials_requested,
+        priorityScore:   response.priority_score ?? triage.priorityScore,
+        impactLevel:     triage.impactLevel,
+        tags:            response.ai_tags ?? triage.tags,
+        fulfillmentMethod: form.fulfillment_type === "staff" ? "Staffed" : "Mailed",
+        aiReasoning:     response.ai_summary ?? triage.aiReasoning,
+        coordinates:     coords as [number, number],
+        submittedAt:     response.created_at ?? new Date().toISOString(),
+      };
+
+      onSubmit(req);
+      setSavedForm({ ...form });
+      setSavedScore(req.priorityScore);
+      setSubmitted(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Submission failed. Please try again.";
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const isValid = form.name && form.eventDate && form.city && form.county &&
-    form.zipCode && form.attendeeCount && form.needs.length > 0;
+  const isValid =
+    form.requestor_name &&
+    form.requestor_email &&
+    form.event_date &&
+    form.event_city &&
+    form.county &&
+    form.event_zip &&
+    form.estimated_attendees &&
+    form.materials_requested.length > 0;
 
   // Flash = autofilled by chatbot → gentle sage highlight
   const flash = (field: FlashField) =>
@@ -83,7 +130,6 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
   if (submitted && savedForm) {
     return (
       <div className="animate-fade-in space-y-5">
-        {/* Success header */}
         <div className="flex items-center gap-4 p-5 bg-sage-50 border border-sage-200 rounded-3xl">
           <div className="w-12 h-12 rounded-2xl bg-sage-600 flex items-center justify-center flex-shrink-0">
             <CheckCircle2 size={22} className="text-paper" />
@@ -100,8 +146,13 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
             <Sparkles size={11} /> AI-powered
           </div>
         </div>
-        {/* Social post generator */}
         <PostGenerator form={savedForm} priorityScore={savedScore} />
+        <button
+          onClick={() => { setSubmitted(false); onReset(); }}
+          className="w-full py-2.5 rounded-2xl border border-sand-200 text-sm text-ink-muted hover:text-ink hover:border-sand-300 transition-colors"
+        >
+          Submit Another Request
+        </button>
       </div>
     );
   }
@@ -109,32 +160,93 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
 
-      {/* Organization Name */}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Organization + Contact */}
       <div>
         <label className={labelBase}>Organization Name *</label>
         <div className="relative">
           <Building2 size={14} className={iconLeft} />
           <input
-            type="text" value={form.name}
-            onChange={(e) => set("name", e.target.value)}
+            type="text" value={form.requestor_name}
+            onChange={(e) => set("requestor_name", e.target.value)}
             placeholder="e.g., Hillcrest High School"
-            className={`${inputBase} pl-9 pr-4 ${flash("name")}`}
+            className={`${inputBase} pl-9 pr-4 ${flash("requestor_name")}`}
             required
           />
         </div>
       </div>
 
-      {/* Event Date */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelBase}>Contact Email *</label>
+          <div className="relative">
+            <Mail size={14} className={iconLeft} />
+            <input
+              type="email" value={form.requestor_email}
+              onChange={(e) => set("requestor_email", e.target.value)}
+              placeholder="name@org.com"
+              className={`${inputBase} pl-9 pr-3 ${flash("requestor_email")}`}
+              required
+            />
+          </div>
+        </div>
+        <div>
+          <label className={labelBase}>Phone</label>
+          <div className="relative">
+            <Phone size={14} className={iconLeft} />
+            <input
+              type="tel" value={form.requestor_phone}
+              onChange={(e) => set("requestor_phone", e.target.value)}
+              placeholder="(801) 555-0100"
+              className={`${inputBase} pl-9 pr-3 ${flash("requestor_phone")}`}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Event Name */}
       <div>
-        <label className={labelBase}>Event Date *</label>
+        <label className={labelBase}>Event Name</label>
         <div className="relative">
-          <CalendarDays size={14} className={iconLeft} />
+          <Tag size={14} className={iconLeft} />
           <input
-            type="date" value={form.eventDate}
-            onChange={(e) => set("eventDate", e.target.value)}
-            className={`${inputBase} pl-9 pr-4 ${flash("eventDate")}`}
-            required
+            type="text" value={form.event_name}
+            onChange={(e) => set("event_name", e.target.value)}
+            placeholder="e.g., Community Health Fair 2026"
+            className={`${inputBase} pl-9 pr-4 ${flash("event_name")}`}
           />
+        </div>
+      </div>
+
+      {/* Event Date + Time */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelBase}>Event Date *</label>
+          <div className="relative">
+            <CalendarDays size={14} className={iconLeft} />
+            <input
+              type="date" value={form.event_date}
+              onChange={(e) => set("event_date", e.target.value)}
+              className={`${inputBase} pl-9 pr-4 ${flash("event_date")}`}
+              required
+            />
+          </div>
+        </div>
+        <div>
+          <label className={labelBase}>Start Time</label>
+          <div className="relative">
+            <Clock size={14} className={iconLeft} />
+            <input
+              type="time" value={form.event_time}
+              onChange={(e) => set("event_time", e.target.value)}
+              className={`${inputBase} pl-9 pr-3 ${flash("event_time")}`}
+            />
+          </div>
         </div>
       </div>
 
@@ -145,10 +257,10 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
           <div className="relative">
             <MapPin size={14} className={iconLeft} />
             <input
-              type="text" value={form.city}
-              onChange={(e) => set("city", e.target.value)}
+              type="text" value={form.event_city}
+              onChange={(e) => set("event_city", e.target.value)}
               placeholder="Midvale"
-              className={`${inputBase} pl-9 pr-3 ${flash("city")}`}
+              className={`${inputBase} pl-9 pr-3 ${flash("event_city")}`}
               required
             />
           </div>
@@ -177,10 +289,10 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
           <div className="relative">
             <MapPin size={14} className={iconLeft} />
             <input
-              type="text" value={form.zipCode}
-              onChange={(e) => set("zipCode", e.target.value)}
+              type="text" value={form.event_zip}
+              onChange={(e) => set("event_zip", e.target.value)}
               placeholder="84047" maxLength={5}
-              className={`${inputBase} pl-9 pr-3 ${flash("zipCode")}`}
+              className={`${inputBase} pl-9 pr-3 ${flash("event_zip")}`}
               required
             />
           </div>
@@ -190,13 +302,37 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
           <div className="relative">
             <Users size={14} className={iconLeft} />
             <input
-              type="number" value={form.attendeeCount}
-              onChange={(e) => set("attendeeCount", e.target.value)}
+              type="number" value={form.estimated_attendees}
+              onChange={(e) => set("estimated_attendees", e.target.value)}
               placeholder="150" min={1}
-              className={`${inputBase} pl-9 pr-3 ${flash("attendeeCount")}`}
+              className={`${inputBase} pl-9 pr-3 ${flash("estimated_attendees")}`}
               required
             />
           </div>
+        </div>
+      </div>
+
+      {/* Fulfillment Type */}
+      <div>
+        <label className={labelBase}>Fulfillment Preference</label>
+        <div className="grid grid-cols-3 gap-2">
+          {(["mail", "staff", "pickup"] as const).map((type) => {
+            const labels = { mail: "Mailed Kit", staff: "On-site Staff", pickup: "Pickup" };
+            const sel = form.fulfillment_type === type;
+            return (
+              <button
+                key={type} type="button"
+                onClick={() => set("fulfillment_type", type)}
+                className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
+                  sel
+                    ? "border-sage-600 bg-sage-50 text-sage-800"
+                    : "border-sand-200 bg-white text-ink-muted hover:border-sand-300"
+                }`}
+              >
+                {labels[type]}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -206,10 +342,10 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
           Resources Needed * <span className="normal-case font-normal text-ink-faint">— select all that apply</span>
         </label>
         <div className={`grid grid-cols-2 gap-1.5 p-2 transition-all duration-300 ${
-          flashFields.includes("needs") ? "bg-sage-50 ring-2 ring-sage-100" : ""
+          flashFields.includes("materials_requested") ? "bg-sage-50 ring-2 ring-sage-100" : ""
         }`}>
           {NEEDS.map(({ label, icon, staff }) => {
-            const sel = form.needs.includes(label);
+            const sel = form.materials_requested.includes(label);
             return (
               <button
                 key={label} type="button"
@@ -234,6 +370,21 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Special Instructions */}
+      <div>
+        <label className={labelBase}>Special Instructions</label>
+        <div className="relative">
+          <FileText size={14} className="absolute left-3 top-3 text-ink-faint z-10" />
+          <textarea
+            value={form.special_instructions}
+            onChange={(e) => set("special_instructions", e.target.value)}
+            placeholder="Any accessibility needs, parking info, preferred contact window…"
+            rows={3}
+            className={`${inputBase} pl-9 pr-4 pt-2.5 resize-none ${flash("special_instructions")}`}
+          />
         </div>
       </div>
 

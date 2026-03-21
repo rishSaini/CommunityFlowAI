@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   LayoutDashboard, FileInput, MapPin, Sparkles,
   Bell, Globe, ChevronRight, TrendingUp, Shield,
-  Zap, ArrowRight, Stethoscope,
+  Zap, ArrowRight, Stethoscope, LogOut, Users,
 } from "lucide-react";
 import PartnerIntakeForm from "./components/forms/PartnerIntakeForm";
 import InlineChatbot from "./components/chatbot/InlineChatbot";
@@ -10,26 +10,79 @@ import UtahMap from "./components/map/UtahMap";
 import LiveFeed from "./components/dashboard/LiveFeed";
 import StatsPanel from "./components/analytics/StatsPanel";
 import StaffDashboard from "./pages/StaffDashboard";
+import AdminProfiles from "./pages/AdminProfiles";
+import LoginPage from "./pages/LoginPage";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { requestsApi } from "./lib/api";
 import { initialRequests } from "./data/mockData";
 import type { ResourceRequest, FormData } from "./types/index";
 
-type View = "intake" | "dashboard" | "staff";
+type View = "intake" | "dashboard" | "staff" | "profiles";
 
 const EMPTY_FORM: FormData = {
-  name: "", eventDate: "", city: "", county: "",
-  zipCode: "", attendeeCount: "", needs: [],
+  requestor_name: "",
+  requestor_email: "",
+  requestor_phone: "",
+  event_name: "",
+  event_date: "",
+  event_time: "",
+  event_city: "",
+  event_zip: "",
+  county: "",
+  fulfillment_type: "",
+  estimated_attendees: "",
+  materials_requested: [],
+  special_instructions: "",
 };
 
-export default function App() {
-  const [view, setView]         = useState<View>("intake");
+// ── Authenticated shell ────────────────────────────────────────────────────
+function AuthenticatedApp() {
+  const { user, logout } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const isStaff = user?.role === "staff";
+
+  // Default view based on role
+  const defaultView: View = isAdmin ? "dashboard" : isStaff ? "staff" : "intake";
+  const [view, setView] = useState<View>(defaultView);
   const [requests, setRequests] = useState<ResourceRequest[]>(initialRequests);
   const [banner, setBanner]     = useState<ResourceRequest | null>(null);
 
   const [form, setForm]               = useState<FormData>(EMPTY_FORM);
   const [flashFields, setFlashFields] = useState<Array<keyof FormData>>([]);
 
+  // Load real requests from backend on mount (admin/staff only)
+  useEffect(() => {
+    if (!isStaff && !isAdmin) return;
+    requestsApi.list(1, 50).then((data) => {
+      const mapped: ResourceRequest[] = data.requests.map((r) => ({
+        id: r.id,
+        name: r.requestor_name,
+        eventDate: r.event_date,
+        zipCode: r.event_zip,
+        city: r.event_city,
+        county: "",
+        attendeeCount: r.estimated_attendees ?? 0,
+        needs: r.materials_requested ?? [],
+        priorityScore: r.priority_score ?? 50,
+        impactLevel: r.urgency_level === "high" ? "High" : r.urgency_level === "medium" ? "Medium" : "Low",
+        tags: r.ai_tags ?? [],
+        fulfillmentMethod: r.fulfillment_type === "staff" ? "Staffed" : "Mailed",
+        aiReasoning: r.ai_summary ?? "AI triage in progress.",
+        coordinates: [-111.5, 39.5],
+        submittedAt: r.created_at ?? new Date().toISOString(),
+      }));
+      if (mapped.length > 0) setRequests(mapped);
+    }).catch(() => {
+      // Keep mock data if backend unavailable
+    });
+  }, [isAdmin, isStaff]);
+
   const handleFormChange = useCallback((updates: Partial<FormData>) => {
-    setForm((prev) => ({ ...prev, ...updates, needs: updates.needs ?? prev.needs }));
+    setForm((prev) => ({
+      ...prev,
+      ...updates,
+      materials_requested: updates.materials_requested ?? prev.materials_requested,
+    }));
   }, []);
 
   const handleChatAutofill = useCallback((updates: Partial<FormData>) => {
@@ -51,16 +104,23 @@ export default function App() {
 
   const highCount = requests.filter((r) => r.impactLevel === "High").length;
 
-  const NAV_TABS: { id: View; label: string; icon: React.ElementType }[] = [
+  type NavTab = { id: View; label: string; icon: React.ElementType; adminOnly?: boolean; staffOnly?: boolean };
+  const ALL_TABS: NavTab[] = [
     { id: "intake",    label: "Submit Request",  icon: FileInput       },
-    { id: "dashboard", label: "Admin Dashboard", icon: LayoutDashboard },
-    { id: "staff",     label: "Staff Portal",    icon: Stethoscope     },
+    { id: "dashboard", label: "Admin Dashboard", icon: LayoutDashboard, adminOnly: true },
+    { id: "staff",     label: "Staff Portal",    icon: Stethoscope,     staffOnly: false },
+    { id: "profiles",  label: "Profiles",        icon: Users,           adminOnly: true  },
   ];
+
+  const visibleTabs = ALL_TABS.filter((t) => {
+    if (t.adminOnly && !isAdmin) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen page-bg flex flex-col">
 
-      {/* ── Nav ────────────────────────────────────────────────────────── */}
+      {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 glass-warm">
         <div className="max-w-[1440px] mx-auto px-6 flex items-center h-[64px] gap-6">
 
@@ -81,7 +141,7 @@ export default function App() {
 
           {/* Nav tabs */}
           <nav className="hidden sm:flex items-center gap-1 bg-sand-100/70 rounded-2xl p-1 ml-2">
-            {NAV_TABS.map(({ id, label, icon: Icon }) => (
+            {visibleTabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setView(id)}
@@ -106,24 +166,43 @@ export default function App() {
 
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-3">
-            <div className="relative">
-              <button className="w-9 h-9 rounded-xl bg-sand-100/70 hover:bg-sand-200/80 transition-colors flex items-center justify-center text-ink-muted">
-                <Bell size={14} />
-              </button>
-              {highCount > 0 && (
+            {highCount > 0 && (
+              <div className="relative">
+                <button className="w-9 h-9 rounded-xl bg-sand-100/70 hover:bg-sand-200/80 transition-colors flex items-center justify-center text-ink-muted">
+                  <Bell size={14} />
+                </button>
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-clay-600 border-2 border-paper text-paper text-[8px] flex items-center justify-center font-black">
                   {highCount}
                 </span>
-              )}
-            </div>
-            <div className="hidden sm:flex items-center gap-1.5 border border-sage-200 bg-sage-50 text-sage-800 text-[11px] font-semibold px-3 py-1.5 rounded-full">
-              <Sparkles size={10} /> AI-Powered
-            </div>
+              </div>
+            )}
+
+            {user && (
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="text-right">
+                  <p className="text-xs font-semibold text-ink leading-tight">{user.full_name.split(" ")[0]}</p>
+                  <p className="text-[10px] text-ink-muted capitalize">{user.role}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  className="w-9 h-9 rounded-xl bg-sand-100/70 hover:bg-sand-200/80 transition-colors flex items-center justify-center text-ink-muted"
+                  title="Sign out"
+                >
+                  <LogOut size={13} />
+                </button>
+              </div>
+            )}
+
+            {!user && (
+              <div className="hidden sm:flex items-center gap-1.5 border border-sage-200 bg-sage-50 text-sage-800 text-[11px] font-semibold px-3 py-1.5 rounded-full">
+                <Sparkles size={10} /> AI-Powered
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      {/* ── Banner ─────────────────────────────────────────────────────── */}
+      {/* ── Banner ──────────────────────────────────────────────────────── */}
       {banner && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
           <div className="bg-ink text-paper px-5 py-3.5 shadow-xl flex items-center gap-3.5 border border-white/10">
@@ -137,7 +216,7 @@ export default function App() {
               </p>
             </div>
             <button
-              onClick={() => { setView("dashboard"); setBanner(null); }}
+              onClick={() => { if (isAdmin) setView("dashboard"); setBanner(null); }}
               className="ml-2 flex items-center gap-1 bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-semibold transition-colors"
             >
               View <ChevronRight size={11} />
@@ -146,7 +225,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Main ───────────────────────────────────────────────────────── */}
+      {/* ── Main ────────────────────────────────────────────────────────── */}
       <main className="flex-1 max-w-[1440px] mx-auto w-full px-4 sm:px-6 py-8">
 
         {/* ── INTAKE VIEW ──────────────────────────────────────────────── */}
@@ -155,12 +234,10 @@ export default function App() {
 
             {/* Editorial Hero */}
             <div className="bg-sage-900 relative overflow-hidden rounded-3xl shadow-lg">
-              {/* Subtle texture strip */}
               <div className="absolute inset-0 opacity-[0.04]"
                 style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 39px, #fff 39px, #fff 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, #fff 39px, #fff 40px)" }}
               />
               <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-0">
-                {/* Main copy */}
                 <div className="md:col-span-2 p-8 md:p-10 border-r border-white/10">
                   <div className="flex items-center gap-2 mb-5">
                     <span className="w-1.5 h-1.5 bg-sage-300 animate-pulse" />
@@ -175,12 +252,11 @@ export default function App() {
                     Describe your event to the AI assistant in plain language — it will complete the form on your behalf and route your request to the right team.
                   </p>
                 </div>
-                {/* Stats column */}
                 <div className="grid grid-cols-3 md:grid-cols-1 divide-x md:divide-x-0 md:divide-y divide-white/10">
                   {[
-                    { v: "2–4 hrs",  l: "Avg Response"     },
-                    { v: "98%",       l: "Satisfaction"      },
-                    { v: "29",        l: "Counties Covered"  },
+                    { v: "2–4 hrs", l: "Avg Response"    },
+                    { v: "98%",     l: "Satisfaction"     },
+                    { v: "29",      l: "Counties Covered" },
                   ].map(({ v, l }) => (
                     <div key={l} className="p-6 flex flex-col justify-center">
                       <p className="text-2xl font-bold text-paper leading-tight"
@@ -194,8 +270,6 @@ export default function App() {
 
             {/* Form + Chatbot */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-              {/* Left: Form */}
               <div className="bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl overflow-hidden shadow-sm">
                 <div className="px-6 py-4 border-b border-sand-100 flex items-center gap-3">
                   <FileInput size={14} className="text-sage-600" />
@@ -215,7 +289,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Right: Chatbot */}
               <div style={{ minHeight: 600 }}>
                 <InlineChatbot form={form} onAutofill={handleChatAutofill} />
               </div>
@@ -256,18 +329,20 @@ export default function App() {
                     Our AI weights geographic equity data to prioritise underserved rural communities — especially San Juan, Grand, Wayne, and Emery counties — over well-resourced urban areas.
                   </p>
                 </div>
-                <button
-                  onClick={() => setView("dashboard")}
-                  className="mt-6 flex items-center gap-1.5 text-xs text-sage-300 hover:text-paper font-semibold transition-colors"
-                >
-                  View equity map <ArrowRight size={11} />
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setView("dashboard")}
+                    className="mt-6 flex items-center gap-1.5 text-xs text-sage-300 hover:text-paper font-semibold transition-colors"
+                  >
+                    View equity map <ArrowRight size={11} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── DASHBOARD VIEW ───────────────────────────────────────────── */}
+        {/* ── DASHBOARD VIEW ──────────────────────────────────────────── */}
         {view === "dashboard" && (
           <div className="animate-fade-in space-y-6">
             <div className="flex items-center justify-between">
@@ -308,10 +383,11 @@ export default function App() {
           </div>
         )}
 
-        {/* ── STAFF VIEW ───────────────────────────────────────────────── */}
-        {view === "staff" && (
-          <StaffDashboard />
-        )}
+        {/* ── STAFF VIEW ──────────────────────────────────────────────── */}
+        {view === "staff" && <StaffDashboard />}
+
+        {/* ── PROFILES VIEW ───────────────────────────────────────────── */}
+        {view === "profiles" && <AdminProfiles />}
 
       </main>
 
@@ -324,5 +400,38 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// ── Root with auth gate ────────────────────────────────────────────────────
+function AppInner() {
+  const { user, loading } = useAuth();
+  const [guestMode, setGuestMode] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen page-bg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-sage-800 flex items-center justify-center">
+            <Globe size={18} className="text-paper" />
+          </div>
+          <p className="text-xs text-ink-muted">Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user && !guestMode) {
+    return <LoginPage onPartnerContinue={() => setGuestMode(true)} />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
   );
 }

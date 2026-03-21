@@ -116,6 +116,8 @@ export interface ParseResult {
   detectedFields: string[];
 }
 
+export type FieldKey = "requestor_name" | "event_date" | "event_city" | "county" | "event_zip" | "estimated_attendees" | "materials_requested";
+
 export function parseMessage(msg: string, currentForm: FormData): ParseResult {
   const text   = msg.toLowerCase().trim();
   const result: Partial<FormData> = {};
@@ -125,45 +127,44 @@ export function parseMessage(msg: string, currentForm: FormData): ParseResult {
   // ── 1. Venue / school lookup ────────────────────────────────────────
   for (const [venue, info] of Object.entries(UTAH_VENUES)) {
     if (text.includes(venue)) {
-      if (!currentForm.city)   { result.city   = info.city;   confidence.city   = "high"; detected.push("city");   }
-      if (!currentForm.county) { result.county = info.county; confidence.county = "high"; detected.push("county"); }
-      if (!currentForm.zipCode && info.zipCode) {
-        result.zipCode = info.zipCode;
-        confidence.zipCode = "high";
-        detected.push("zipCode");
+      if (!currentForm.event_city)   { result.event_city = info.city;   confidence.event_city   = "high"; detected.push("event_city");   }
+      if (!currentForm.county)       { result.county     = info.county; confidence.county       = "high"; detected.push("county"); }
+      if (!currentForm.event_zip && info.zipCode) {
+        result.event_zip = info.zipCode;
+        confidence.event_zip = "high";
+        detected.push("event_zip");
       }
       break;
     }
   }
 
   // ── 2. City lookup ──────────────────────────────────────────────────
-  if (!result.city && !currentForm.city) {
+  if (!result.event_city && !currentForm.event_city) {
     for (const [city, info] of Object.entries(CITY_COUNTY)) {
       const pattern = new RegExp(`\\b${city.replace(/\s+/g, "\\s+")}\\b`, "i");
       if (pattern.test(text)) {
-        result.city   = city.split(" ").map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
-        result.county = info.county;
-        if (info.zipCode && !currentForm.zipCode) result.zipCode = info.zipCode;
-        confidence.city = confidence.county = "high";
-        detected.push("city", "county");
+        result.event_city = city.split(" ").map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
+        result.county     = info.county;
+        if (info.zipCode && !currentForm.event_zip) result.event_zip = info.zipCode;
+        confidence.event_city = confidence.county = "high";
+        detected.push("event_city", "county");
         break;
       }
     }
   }
 
   // ── 3. Zip code ─────────────────────────────────────────────────────
-  if (!currentForm.zipCode) {
+  if (!currentForm.event_zip) {
     const zipMatch = text.match(/\b84\d{3}\b/);
     if (zipMatch) {
-      result.zipCode = zipMatch[0];
-      confidence.zipCode = "high";
-      detected.push("zipCode");
+      result.event_zip = zipMatch[0];
+      confidence.event_zip = "high";
+      detected.push("event_zip");
     }
   }
 
   // ── 4. Date parsing ─────────────────────────────────────────────────
-  if (!currentForm.eventDate) {
-    // "April 15 2026" / "April 15, 2026"
+  if (!currentForm.event_date) {
     const longDate = text.match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})?\b/i);
     if (longDate) {
       const month = MONTHS[longDate[1].toLowerCase()];
@@ -171,79 +172,76 @@ export function parseMessage(msg: string, currentForm: FormData): ParseResult {
       const year  = longDate[3] ? parseInt(longDate[3]) : 2026;
       const d     = new Date(year, month - 1, day);
       if (!isNaN(d.getTime())) {
-        result.eventDate = d.toISOString().split("T")[0];
-        confidence.eventDate = "high";
-        detected.push("eventDate");
+        result.event_date = d.toISOString().split("T")[0];
+        confidence.event_date = "high";
+        detected.push("event_date");
       }
     }
 
-    // "15th of April" / "the 15th"
-    if (!result.eventDate) {
+    if (!result.event_date) {
       const reverseDate = text.match(/(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)/i);
       if (reverseDate) {
         const month = MONTHS[reverseDate[2].toLowerCase()];
         const day   = parseInt(reverseDate[1]);
         const d     = new Date(2026, month - 1, day);
         if (!isNaN(d.getTime())) {
-          result.eventDate = d.toISOString().split("T")[0];
-          confidence.eventDate = "high";
-          detected.push("eventDate");
+          result.event_date = d.toISOString().split("T")[0];
+          confidence.event_date = "high";
+          detected.push("event_date");
         }
       }
     }
 
-    // ISO / numeric: "2026-04-15" or "4/15/2026" or "04/15/26"
-    if (!result.eventDate) {
+    if (!result.event_date) {
       const isoDate = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
       if (isoDate) {
-        result.eventDate = isoDate[0];
-        confidence.eventDate = "high";
-        detected.push("eventDate");
+        result.event_date = isoDate[0];
+        confidence.event_date = "high";
+        detected.push("event_date");
       }
       const slashDate = text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
-      if (slashDate && !result.eventDate) {
+      if (slashDate && !result.event_date) {
         const m = parseInt(slashDate[1]), d = parseInt(slashDate[2]);
         let y = parseInt(slashDate[3]);
         if (y < 100) y += 2000;
         const dt = new Date(y, m - 1, d);
         if (!isNaN(dt.getTime())) {
-          result.eventDate = dt.toISOString().split("T")[0];
-          confidence.eventDate = "medium";
-          detected.push("eventDate");
+          result.event_date = dt.toISOString().split("T")[0];
+          confidence.event_date = "medium";
+          detected.push("event_date");
         }
       }
     }
   }
 
   // ── 5. Attendee count ───────────────────────────────────────────────
-  if (!currentForm.attendeeCount) {
+  if (!currentForm.estimated_attendees) {
     const countMatch = text.match(/\b(\d+)\s*(?:people|students|attendees|participants|guests|kids|adults|folks|members|expected|anticipated)?\b/);
-    // avoid matching years or zip codes
     if (countMatch) {
       const n = parseInt(countMatch[1]);
       if (n >= 5 && n <= 5000 && !String(n).match(/^(202[0-9]|84\d{3})$/)) {
-        result.attendeeCount = String(n);
-        confidence.attendeeCount = "medium";
-        detected.push("attendeeCount");
+        result.estimated_attendees = String(n);
+        confidence.estimated_attendees = "medium";
+        detected.push("estimated_attendees");
       }
     }
   }
 
   // ── 6. Resource needs ───────────────────────────────────────────────
-  const detectedNeeds: string[] = [...(currentForm.needs ?? [])];
+  const detectedNeeds: string[] = [...(currentForm.materials_requested ?? [])];
   for (const { patterns, need } of NEED_KEYWORDS) {
     if (!detectedNeeds.includes(need) && patterns.some((p) => text.includes(p))) {
       detectedNeeds.push(need);
-      detected.push("needs");
+      detected.push("materials_requested");
     }
   }
-  if (detectedNeeds.length > (currentForm.needs?.length ?? 0)) {
-    result.needs = detectedNeeds;
-    confidence.needs = "high";
+  if (detectedNeeds.length > (currentForm.materials_requested?.length ?? 0)) {
+    result.materials_requested = detectedNeeds;
+    confidence.materials_requested = "high";
   }
 
   // ── 7. Organization name ────────────────────────────────────────────
-  if (!currentForm.name) {
+  if (!currentForm.requestor_name) {
     const orgPatterns = [
       /(?:i(?:'m| am) (?:from |with |at )?|(?:representing |on behalf of |for ))([A-Z][^\.,!?]+?)(?:\.|,|!|\?|$| and )/,
       /\b([\w\s]+ (?:school|clinic|library|center|centre|health|hospital|church|district|foundation|coalition|org|organization|department|dept))\b/i,
@@ -251,9 +249,9 @@ export function parseMessage(msg: string, currentForm: FormData): ParseResult {
     for (const pattern of orgPatterns) {
       const m = msg.match(pattern);
       if (m && m[1].length > 3 && m[1].length < 80) {
-        result.name = m[1].trim();
-        confidence.name = "medium";
-        detected.push("name");
+        result.requestor_name = m[1].trim();
+        confidence.requestor_name = "medium";
+        detected.push("requestor_name");
         break;
       }
     }
@@ -267,29 +265,33 @@ export function parseMessage(msg: string, currentForm: FormData): ParseResult {
 }
 
 // ── Determine which required fields are still missing ────────────────────
-export type FieldKey = keyof FormData;
+const REQUIRED_FIELDS: FieldKey[] = [
+  "requestor_name", "event_date", "event_city", "county", "event_zip", "estimated_attendees", "materials_requested",
+];
 
-const FIELD_LABELS: Record<FieldKey, string> = {
-  name:          "organization name",
-  eventDate:     "event date",
-  city:          "city",
-  county:        "county",
-  zipCode:       "zip code",
-  attendeeCount: "number of attendees",
-  needs:         "resources needed",
+export const FIELD_LABELS: Record<FieldKey, string> = {
+  requestor_name:       "organization name",
+  event_date:           "event date",
+  event_city:           "city",
+  county:               "county",
+  event_zip:            "zip code",
+  estimated_attendees:  "number of attendees",
+  materials_requested:  "resources needed",
 };
 
 export function getMissingFields(form: FormData): FieldKey[] {
   const missing: FieldKey[] = [];
-  if (!form.name)          missing.push("name");
-  if (!form.eventDate)     missing.push("eventDate");
-  if (!form.city)          missing.push("city");
-  if (!form.county)        missing.push("county");
-  if (!form.zipCode)       missing.push("zipCode");
-  if (!form.attendeeCount) missing.push("attendeeCount");
-  if (!form.needs?.length) missing.push("needs");
+  if (!form.requestor_name)                    missing.push("requestor_name");
+  if (!form.event_date)                        missing.push("event_date");
+  if (!form.event_city)                        missing.push("event_city");
+  if (!form.county)                            missing.push("county");
+  if (!form.event_zip)                         missing.push("event_zip");
+  if (!form.estimated_attendees)               missing.push("estimated_attendees");
+  if (!form.materials_requested?.length)       missing.push("materials_requested");
   return missing;
 }
+
+export { REQUIRED_FIELDS };
 
 // ── Build the bot's follow-up response ───────────────────────────────────
 export function buildBotReply(
@@ -300,37 +302,35 @@ export function buildBotReply(
   const { extracted, detectedFields } = parsed;
   const missing = getMissingFields(updatedForm);
 
-  // Build "I caught X, Y, Z" summary
   const gotParts: string[] = [];
-  if (detectedFields.includes("name") && extracted.name)
-    gotParts.push(`organization: **${extracted.name}**`);
-  if (detectedFields.includes("city") && extracted.city)
-    gotParts.push(`location: **${extracted.city}${extracted.county ? `, ${extracted.county} County` : ""}**`);
-  if (detectedFields.includes("eventDate") && extracted.eventDate)
-    gotParts.push(`date: **${new Date(extracted.eventDate + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}**`);
-  if (detectedFields.includes("attendeeCount") && extracted.attendeeCount)
-    gotParts.push(`attendees: **${extracted.attendeeCount}**`);
-  if (detectedFields.includes("needs") && extracted.needs?.length)
-    gotParts.push(`resources: **${extracted.needs.slice(-(extracted.needs.length - (parsed.extracted.needs?.length ?? 0) + detectedFields.filter(f => f === "needs").length)).join(", ")}**`);
+  if (detectedFields.includes("requestor_name") && extracted.requestor_name)
+    gotParts.push(`organization: **${extracted.requestor_name}**`);
+  if (detectedFields.includes("event_city") && extracted.event_city)
+    gotParts.push(`location: **${extracted.event_city}${extracted.county ? `, ${extracted.county} County` : ""}**`);
+  if (detectedFields.includes("event_date") && extracted.event_date)
+    gotParts.push(`date: **${new Date(extracted.event_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}**`);
+  if (detectedFields.includes("estimated_attendees") && extracted.estimated_attendees)
+    gotParts.push(`attendees: **${extracted.estimated_attendees}**`);
+  if (detectedFields.includes("materials_requested") && extracted.materials_requested?.length)
+    gotParts.push(`resources: **${extracted.materials_requested.slice(-(extracted.materials_requested.length - (parsed.extracted.materials_requested?.length ?? 0) + 1)).join(", ")}**`);
 
   const ackLine = gotParts.length
-    ? `Got it — I picked up ${gotParts.join(", ")}. ✅\n\n`
+    ? `Got it — I picked up ${gotParts.join(", ")}.\n\n`
     : (isFirstMessage ? "" : "Hmm, I didn't catch anything new there — let me know if you meant something else.\n\n");
 
   if (missing.length === 0) {
-    return `${ackLine}Everything looks complete! 🎉 The form is ready to submit — take a quick look to confirm the details are right.`;
+    return `${ackLine}Everything looks complete! The form is ready to submit — take a quick look to confirm the details are right.`;
   }
 
-  // Ask for the next most important missing field
   const nextField = missing[0];
   const prompts: Record<FieldKey, string> = {
-    name:          "What's the name of your organization or school?",
-    eventDate:     "What date is the event? (e.g., April 22, 2026)",
-    city:          "What city will the event be held in?",
-    county:        "Which Utah county is the event in?",
-    zipCode:       "What's the zip code for the event location?",
-    attendeeCount: "Roughly how many people are you expecting to attend?",
-    needs:         "What resources do you need? For example: nutrition kits, mental health resources, vaccine info, or on-site staff.",
+    requestor_name:      "What's the name of your organization or school?",
+    event_date:          "What date is the event? (e.g., April 22, 2026)",
+    event_city:          "What city will the event be held in?",
+    county:              "Which Utah county is the event in?",
+    event_zip:           "What's the zip code for the event location?",
+    estimated_attendees: "Roughly how many people are you expecting to attend?",
+    materials_requested: "What resources do you need? For example: nutrition kits, mental health resources, vaccine info, or on-site staff.",
   };
 
   const remaining = missing.length - 1;
@@ -340,5 +340,3 @@ export function buildBotReply(
 
   return `${ackLine}${prompts[nextField]}${remainingHint}`;
 }
-
-export { FIELD_LABELS };

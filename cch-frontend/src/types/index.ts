@@ -28,13 +28,19 @@ export interface ResourceRequest {
 }
 
 export interface FormData {
-  name: string;
-  eventDate: string;
-  city: string;
+  requestor_name: string;
+  requestor_email: string;
+  requestor_phone: string;
+  event_name: string;
+  event_date: string;
+  event_time: string;
+  event_city: string;
+  event_zip: string;
   county: string;
-  zipCode: string;
-  attendeeCount: string;
-  needs: string[];
+  fulfillment_type: "staff" | "mail" | "pickup" | "";
+  estimated_attendees: string;
+  materials_requested: string[];
+  special_instructions: string;
 }
 
 export interface TriageResult {
