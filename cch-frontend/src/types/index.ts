@@ -34,6 +34,7 @@ export interface FormData {
   event_name: string;
   event_date: string;
   event_time: string;
+  event_address: string;
   event_city: string;
   event_zip: string;
   county: string;

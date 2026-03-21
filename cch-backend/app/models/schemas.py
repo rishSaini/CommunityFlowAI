@@ -49,6 +49,7 @@ class RequestCreate(BaseModel):
     event_name: str
     event_date: date
     event_time: Optional[str] = None
+    event_address: Optional[str] = None
     event_city: str
     event_zip: str
     mailing_address: Optional[str] = None
@@ -69,6 +70,7 @@ class RequestResponse(BaseModel):
     event_name: str
     event_date: date
     event_time: Optional[str] = None
+    event_address: Optional[str] = None
     event_city: str
     event_zip: str
     event_lat: Optional[float] = None

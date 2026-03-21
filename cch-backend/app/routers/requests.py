@@ -124,7 +124,7 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
     event_lng: Optional[float] = None
     assigned_location_id: Optional[str] = None
 
-    coords = geocode_address(body.event_city, body.event_zip)
+    coords = geocode_address(body.event_city, body.event_zip, body.event_address)
     if coords is not None:
         event_lat, event_lng = coords
 
@@ -176,6 +176,7 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
         event_name=body.event_name,
         event_date=body.event_date,
         event_time=body.event_time,
+        event_address=body.event_address,
         event_city=body.event_city,
         event_zip=body.event_zip,
         event_lat=event_lat,

@@ -63,6 +63,7 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
         event_name:           form.event_name || form.requestor_name,
         event_date:           form.event_date,
         event_time:           form.event_time || null,
+        event_address:        form.event_address || null,
         event_city:           form.event_city,
         event_zip:            form.event_zip,
         fulfillment_type:     fType,
@@ -114,6 +115,7 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
     form.requestor_email &&
     form.requestor_phone &&
     form.event_date &&
+    form.event_address &&
     form.event_city &&
     form.county &&
     form.event_zip &&
@@ -268,6 +270,21 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
               className={`${inputBase} pl-9 pr-3 ${flash("event_time")}`}
             />
           </div>
+        </div>
+      </div>
+
+      {/* Event Address */}
+      <div>
+        <label className={labelBase}>Event Address *</label>
+        <div className="relative">
+          <MapPin size={14} className={iconLeft} />
+          <input
+            type="text" value={form.event_address}
+            onChange={(e) => set("event_address", e.target.value)}
+            placeholder="123 Main St"
+            className={`${inputBase} pl-9 pr-4 ${flash("event_address" as FlashField)}`}
+            required
+          />
         </div>
       </div>
 

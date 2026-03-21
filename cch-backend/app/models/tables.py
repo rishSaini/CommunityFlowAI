@@ -72,6 +72,7 @@ class Request(Base):
     event_name = Column(String, nullable=False)
     event_date = Column(Date, nullable=False)
     event_time = Column(String, nullable=True)               # HH:MM, optional
+    event_address = Column(String, nullable=True)            # Street address
     event_city = Column(String, nullable=False)              # Must be in Utah
     event_zip = Column(String, nullable=False)               # Must be 84xxx
     event_lat = Column(Float, nullable=True)                 # Geocoded, Utah bounds

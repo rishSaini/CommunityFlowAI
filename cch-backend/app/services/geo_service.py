@@ -16,9 +16,11 @@ from app.utils.utah_validator import validate_coordinates
 logger = logging.getLogger(__name__)
 
 
-def geocode_address(city: str, zip_code: str) -> tuple[float, float] | None:
-    """Geocode a Utah city/zip into (lat, lng) via the Google Geocoding API.
+def geocode_address(city: str, zip_code: str, street_address: str | None = None) -> tuple[float, float] | None:
+    """Geocode a Utah address into (lat, lng) via the Google Geocoding API.
 
+    Uses full street address when provided for pin-point accuracy, otherwise
+    falls back to city + zip (city-level).
     Returns None when the API key is missing, the address cannot be resolved,
     or the result falls outside Utah bounds.
     """
@@ -28,7 +30,8 @@ def geocode_address(city: str, zip_code: str) -> tuple[float, float] | None:
 
     try:
         client = googlemaps.Client(key=GOOGLE_MAPS_API_KEY)
-        results = client.geocode(f"{city}, UT {zip_code}")
+        query = f"{street_address}, {city}, UT {zip_code}" if street_address else f"{city}, UT {zip_code}"
+        results = client.geocode(query)
 
         if not results:
             logger.warning("Geocode returned no results for %s, UT %s", city, zip_code)
@@ -49,7 +52,7 @@ def geocode_address(city: str, zip_code: str) -> tuple[float, float] | None:
         return (lat, lng)
 
     except Exception:
-        logger.exception("Google Geocoding API error for %s, UT %s", city, zip_code)
+        logger.exception("Google Geocoding API error for %s", query)
         return None
 
 

@@ -33,6 +33,7 @@ const EMPTY_FORM: FormData = {
   event_name: "",
   event_date: "",
   event_time: "",
+  event_address: "",
   event_city: "",
   event_zip: "",
   county: "",
@@ -130,7 +131,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
           tags: r.ai_tags ?? [],
           fulfillmentMethod: r.fulfillment_type === "staff" ? "Staffed" : "Mailed",
           aiReasoning: r.ai_summary ?? "AI triage in progress.",
-          coordinates: getCityCoords(r.event_city) ?? [-111.5, 39.5],
+          coordinates: (r.event_lat && r.event_lng) ? [r.event_lng, r.event_lat] : (getCityCoords(r.event_city) ?? [-111.5, 39.5]),
           submittedAt: r.created_at ?? new Date().toISOString(),
         };
       });
