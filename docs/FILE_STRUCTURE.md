@@ -22,6 +22,7 @@ cch-frontend/
 │   │   ├── employees/       # EmployeeTable, EmployeeDetail, ClassificationBadge
 │   │   ├── connectors/      # ConnectorCard, SyncModal (9 fake enterprise connectors)
 │   │   ├── calendar/        # AdminTeamCalendar (drag-drop), EmployeePersonalCalendar
+│   │   ├── chat/            # ChatChannel (reusable), StaffMessagesView (split-pane)
 │   │   ├── dispatch/        # MultiStaffAssignModal (team assignment)
 │   │   ├── schedule/        # WeeklySchedule, AvailabilityInput, TaskCard
 │   │   ├── chatbot/         # ChatbotPanel, MessageBubble, TypingIndicator
@@ -95,7 +96,8 @@ cch-backend/
 │   │   ├── employees.py     # Staff management, schedules, check-in
 │   │   ├── briefs.py        # Job Brief generation and retrieval
 │   │   ├── admin.py         # Admin-only operations, settings, overrides
-│   │   └── schedule.py      # Shift CRUD, templates, coverage, AI suggestions, team assignment
+│   │   ├── schedule.py      # Shift CRUD, templates, coverage, AI suggestions, team assignment
+│   │   └── messages.py      # Partner ↔ Staff direct messaging channels
 │   ├── services/
 │   │   ├── ai_service.py         # OpenRouter gateway — all LLM calls
 │   │   ├── dispatch_service.py   # 8-step dispatch algorithm
@@ -137,3 +139,4 @@ cch-backend/
 |------|--------|--------|
 | 2026-03-21 | Scaffold | Initial creation |
 | 2026-03-21 | Claude | Added `schedule.py` router, `schedule_management_service.py` service, `calendar/` components (AdminTeamCalendar, EmployeePersonalCalendar), `dispatch/MultiStaffAssignModal`. Updated tables.py (3 new tables), dispatch.py (multi-staff). |
+| 2026-03-21 | Claude | Added `messages.py` router (partner-staff direct messaging), `chat/ChatChannel.tsx` + `StaffMessagesView.tsx`, `PartnerDashboard.tsx` page. Partner login support in LoginPage. "Messages" tab for staff, "My Requests" tab for partners. |

@@ -250,6 +250,47 @@ export const notificationsApi = {
     }),
 };
 
+// ── Messages (Partner ↔ Staff Chat) ──────────────────────────────────────
+
+export interface MessageResponse {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  sender_name: string;
+  sender_role: string;
+  content: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface ChannelResponse {
+  request_id: string;
+  event_name: string;
+  event_date: string;
+  event_city: string;
+  partner_name: string;
+  partner_id: string;
+  staff_name: string | null;
+  staff_id: string | null;
+  last_message: string | null;
+  last_message_at: string | null;
+  unread_count: number;
+  status: string;
+}
+
+export const messagesApi = {
+  getChannels: () => req<ChannelResponse[]>("/messages/channels"),
+
+  getMessages: (requestId: string) =>
+    req<MessageResponse[]>(`/messages/${requestId}`),
+
+  sendMessage: (requestId: string, content: string) =>
+    req<MessageResponse>(`/messages/${requestId}`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
+};
+
 // ── Schedule & Calendar ──────────────────────────────────────────────────
 import type {
   ShiftAssignment, ShiftTemplate, CalendarEmployee, CalendarTask,

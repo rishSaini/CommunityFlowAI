@@ -29,6 +29,7 @@ pnpm-debug.log*
 
 # SQLite
 *.sqlite3
+*.db
 
 # Editor
 .vscode/*

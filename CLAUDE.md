@@ -70,7 +70,15 @@ All docs are **living documents** — update them as code evolves. Each has a ch
 | Ashley (VOL) | `ashley@cch.org` | `ashley` | Saturday 9-1, Logan |
 | Ryan (OUTSIDE) | `ryan@cch.org` | `ryan` | No schedule, Park City |
 
-Each employee sees only their own shifts + assigned tasks in the Staff Portal calendar.
+### Community Partner Logins
+
+| Partner | Email | Password | Chats With |
+|---------|-------|----------|------------|
+| Jennifer Smith | `jennifer@community.org` | `jennifer` | Emily (2 requests) |
+| Carlos Mendoza | `carlos@community.org` | `carlos` | Emily (1 request) |
+| Lisa Chang | `lisa@community.org` | `lisa` | Maria (1 request) |
+
+Partners see their requests + direct chat with assigned staff. Staff see a "Messages" tab with all partner conversations.
 
 ## Development Commands
 

@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.models.database import engine, SessionLocal, Base
 from app.models.tables import (
     User, Request, Location, MaterialsCatalog, ServiceAreaZip, NotificationLog,
-    ShiftAssignment, RequestAssignment, ShiftTemplate,
+    ShiftAssignment, RequestAssignment, ShiftTemplate, PartnerMessage,
 )
 from app.auth import hash_password
 
@@ -1105,6 +1105,246 @@ def seed_employee_tasks(db, location_map, staff_list, material_ids):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  Partner Accounts & Chat Messages
+# ═══════════════════════════════════════════════════════════════
+
+def seed_partners(db):
+    """Create 3 community partner accounts with simple logins."""
+    now = datetime.now(timezone.utc)
+
+    partners = [
+        {
+            "email": "jennifer@community.org", "full_name": "Jennifer Smith",
+            "phone": "801-555-3001", "_password": hash_password("jennifer"),
+        },
+        {
+            "email": "carlos@community.org", "full_name": "Carlos Mendoza",
+            "phone": "801-555-3002", "_password": hash_password("carlos"),
+        },
+        {
+            "email": "lisa@community.org", "full_name": "Lisa Chang",
+            "phone": "801-555-3003", "_password": hash_password("lisa"),
+        },
+    ]
+
+    partner_list = []
+    for p in partners:
+        partner_id = uid()
+        db.add(User(
+            id=partner_id,
+            email=p["email"],
+            hashed_password=p["_password"],
+            full_name=p["full_name"],
+            role="partner",
+            phone=p["phone"],
+            assigned_location_ids=[],
+            schedule=[],
+            schedule_exceptions=[],
+            on_call_schedule=[],
+            current_workload=0,
+            max_workload=0,
+            is_on_duty=False,
+            is_active=True,
+            notification_queue=[],
+            certifications=[],
+            created_at=now,
+        ))
+        partner_list.append({"id": partner_id, "email": p["email"], "name": p["full_name"]})
+
+    db.flush()
+    return partner_list
+
+
+def seed_partner_requests_and_messages(db, location_map, partner_list, staff_list, material_ids):
+    """Create requests owned by partners and seed demo chat messages."""
+    now = datetime.now(timezone.utc)
+    loc_list = [{"city": c, **v} for c, v in location_map.items()]
+
+    jennifer = next((p for p in partner_list if "jennifer" in p["email"]), None)
+    carlos   = next((p for p in partner_list if "carlos" in p["email"]), None)
+    lisa     = next((p for p in partner_list if "lisa" in p["email"]), None)
+
+    # Resolve staff dicts to include name (staff_list only has id + classification)
+    def resolve_staff(classification):
+        entry = next((s for s in staff_list if s["classification"] == classification), None)
+        if entry:
+            user = db.query(User).filter(User.id == entry["id"]).first()
+            return {"id": entry["id"], "name": user.full_name if user else "Staff"} if entry else None
+        return None
+
+    emily = resolve_staff("FT_W2")
+    james = resolve_staff("PT_W2")
+    maria = resolve_staff("ON_CALL")
+
+    # ── Partner requests (assigned to specific staff) ──
+    PARTNER_REQUESTS = [
+        # Jennifer has 2 requests — one with Emily, one with James
+        {
+            "partner": jennifer, "staff": emily,
+            "event_name": "Mountain View Elementary Spring Health Fair",
+            "event_date": date(2026, 4, 10), "event_time": "09:00",
+            "city": "Salt Lake City", "zip": "84101", "lat": 40.758, "lng": -111.888,
+            "fulfillment": "staff", "urgency": "high", "attendees": 280, "priority": 82,
+            "status": "dispatched",
+        },
+        {
+            "partner": jennifer, "staff": james,
+            "event_name": "After-School Nutrition Workshop",
+            "event_date": date(2026, 4, 20), "event_time": "15:00",
+            "city": "Provo", "zip": "84601", "lat": 40.234, "lng": -111.659,
+            "fulfillment": "staff", "urgency": "medium", "attendees": 60, "priority": 52,
+            "status": "approved",
+        },
+        # Carlos has 1 request — with Emily
+        {
+            "partner": carlos, "staff": emily,
+            "event_name": "Community Wellness Night — West Side",
+            "event_date": date(2026, 4, 12), "event_time": "18:00",
+            "city": "Salt Lake City", "zip": "84104", "lat": 40.775, "lng": -111.930,
+            "fulfillment": "staff", "urgency": "high", "attendees": 400, "priority": 88,
+            "status": "dispatched",
+        },
+        # Lisa has 1 request — with Maria
+        {
+            "partner": lisa, "staff": maria,
+            "event_name": "Youth Mental Health Awareness at Weber State",
+            "event_date": date(2026, 4, 17), "event_time": "10:00",
+            "city": "Ogden", "zip": "84401", "lat": 41.225, "lng": -111.971,
+            "fulfillment": "staff", "urgency": "critical", "attendees": 500, "priority": 94,
+            "status": "dispatched",
+        },
+    ]
+
+    created_requests = []  # Track for message seeding
+
+    for pr in PARTNER_REQUESTS:
+        partner = pr["partner"]
+        staff = pr["staff"]
+        if not partner or not staff:
+            continue
+
+        nearest = find_nearest_location(pr["lat"], pr["lng"], loc_list)
+        req_id = uid()
+
+        created_requests.append({
+            "req_id": req_id,
+            "partner": partner,
+            "staff": staff,
+            "event_name": pr["event_name"],
+        })
+
+        db.add(Request(
+            id=req_id,
+            status=pr["status"],
+            fulfillment_type=pr["fulfillment"],
+            urgency_level=pr["urgency"],
+            requestor_name=partner["name"],
+            requestor_email=partner["email"],
+            requestor_phone="801-555-3001",
+            event_name=pr["event_name"],
+            event_date=pr["event_date"],
+            event_time=pr["event_time"],
+            event_city=pr["city"],
+            event_zip=pr["zip"],
+            event_lat=pr["lat"],
+            event_lng=pr["lng"],
+            estimated_attendees=pr["attendees"],
+            materials_requested=[
+                {"material_id": mid, "quantity": random.randint(1, 5)}
+                for mid in random.sample(material_ids, 2)
+            ],
+            assigned_location_id=nearest["id"],
+            assigned_staff_id=staff["id"] if pr["status"] == "dispatched" else None,
+            status_tracker_token=uid(),
+            ai_priority_score=pr["priority"],
+            priority_justification=f"Priority {pr['priority']}/100. {pr['urgency'].title()} urgency.",
+            ai_tags=["community-health", "partner-request"],
+            ai_summary=f"Partner request: {pr['event_name']} in {pr['city']}.",
+            ai_classification={"fulfillment_type": pr["fulfillment"], "confidence": 0.95},
+            ai_urgency={"level": pr["urgency"], "reasons": ["Partner request"], "auto_escalated": False},
+            ai_flags={"incomplete": False, "inconsistent": False, "duplicate": False, "details": None},
+            created_at=now - timedelta(days=random.randint(3, 10)),
+            updated_at=now,
+        ))
+
+        # Create RequestAssignment if dispatched
+        if pr["status"] == "dispatched":
+            db.add(RequestAssignment(
+                id=uid(), request_id=req_id, user_id=staff["id"], role="primary",
+            ))
+
+    db.flush()
+
+    # ── Seed demo chat messages using created_requests index ──
+    # Index: 0 = Jennifer+Emily (Spring Health Fair)
+    #        1 = Jennifer+James (After-School Nutrition)
+    #        2 = Carlos+Emily (Community Wellness Night)
+    #        3 = Lisa+Maria (Weber State)
+
+    DEMO_CONVERSATIONS = [
+        # Jennifer ↔ Emily on the Spring Health Fair (index 0)
+        {
+            "index": 0,
+            "messages": [
+                (jennifer, "partner", "Hi! I submitted our request for the Spring Health Fair. We're expecting around 280 students and parents. Is there anything else you need from us?"),
+                (emily, "staff", "Hi Jennifer! I've been assigned as your CCH representative for this event. I see the request — it looks great. Could you confirm the venue has A/V equipment?"),
+                (jennifer, "partner", "Yes, the gym has a projector and speakers. We can also set up tables near the entrance for materials."),
+                (emily, "staff", "Perfect! I'll bring the Nutrition Guide Kits and Mental Health Awareness Packs. I'll arrive about 30 minutes early for setup. Looking forward to it!"),
+                (jennifer, "partner", "Wonderful, thank you! One more thing — we have a few Spanish-speaking families. Do you have bilingual materials?"),
+                (emily, "staff", "Absolutely! I'll include our bilingual nutrition guides and mental health resources. We have them in Spanish, and I also speak conversational Spanish if needed during the event."),
+            ],
+        },
+        # Carlos ↔ Emily on Community Wellness Night (index 2)
+        {
+            "index": 2,
+            "messages": [
+                (carlos, "partner", "Hello! Carlos here from the West Side community center. We have 400+ RSVPs for the wellness night. Can you send 2 staff members?"),
+                (emily, "staff", "Hi Carlos! I'm Emily, your CCH rep. 400 is a big crowd — I'll check with my supervisor about getting a second team member. In the meantime, can you tell me about parking and setup access?"),
+                (carlos, "partner", "There's a loading dock at the back for supplies and visitor parking holds about 80 cars. Setup access starts at 4 PM."),
+                (emily, "staff", "Great, I'll plan to arrive at 4 PM with materials. I've requested James Park as support — he's our nutrition specialist. You'll have two of us there!"),
+            ],
+        },
+        # Lisa ↔ Maria on the Weber State event (index 3)
+        {
+            "index": 3,
+            "messages": [
+                (lisa, "partner", "Hi, this is Lisa Chang. The Weber State event is critical — we have 500 students registered and the administration is very invested. Is everything on track?"),
+                (maria, "staff", "Hi Lisa! I'm Maria Santos, your assigned specialist. I've reviewed the request — this is flagged as critical priority which means it's getting top attention. I have Crisis Intervention certification, so I'm well-prepared for the mental health focus."),
+                (lisa, "partner", "That's reassuring. The keynote speaker is Dr. Williams from the university psych department. Could you coordinate with him on materials?"),
+                (maria, "staff", "Of course! Can you share his email? I'll reach out today to align our materials with his presentation topics."),
+                (lisa, "partner", "It's d.williams@weber.edu. He's focusing on student anxiety and coping strategies."),
+                (maria, "staff", "Perfect — I'll bring our Emotion Regulation Toolkit, Mindfulness Activity Set, and Mental Health Awareness Packs. I'll email Dr. Williams this afternoon. We're going to make this a great event!"),
+            ],
+        },
+    ]
+
+    msg_count = 0
+    for conv in DEMO_CONVERSATIONS:
+        idx = conv["index"]
+        if idx >= len(created_requests):
+            continue
+        info = created_requests[idx]
+
+        for i, (sender_dict, sender_role, content) in enumerate(conv["messages"]):
+            if not sender_dict:
+                continue
+            db.add(PartnerMessage(
+                id=uid(),
+                request_id=info["req_id"],
+                sender_id=sender_dict["id"],
+                sender_name=sender_dict["name"],
+                sender_role=sender_role,
+                content=content,
+                read_at=now - timedelta(hours=random.randint(1, 24)) if i < len(conv["messages"]) - 1 else None,
+                created_at=now - timedelta(hours=len(conv["messages"]) - i),
+            ))
+            msg_count += 1
+
+    db.flush()
+    return msg_count
+
+
+# ═══════════════════════════════════════════════════════════════
 #  Main
 # ═══════════════════════════════════════════════════════════════
 
@@ -1144,6 +1384,12 @@ def seed():
         print("Seeding employee-specific tasks (per-person demo data)...")
         emp_task_count = seed_employee_tasks(db, location_map, staff_list, material_ids)
 
+        print("Seeding partner accounts...")
+        partner_list = seed_partners(db)
+
+        print("Seeding partner requests & chat messages...")
+        msg_count = seed_partner_requests_and_messages(db, location_map, partner_list, staff_list, material_ids)
+
         db.commit()
 
         # ── Summary ──
@@ -1178,11 +1424,16 @@ def seed():
         print(f"  Shift Assignments:     {shift_count_db}")
         print(f"  Request Assignments:   {ra_count_db}")
         print(f"  Classifications:       {', '.join(c[0] for c in classifications)}")
+        partner_count = db.query(User).filter(User.role == "partner").count()
+        msg_count_db = db.query(PartnerMessage).count()
+
         print(f"  Employee Tasks:        {db.query(Request).filter(Request.assigned_staff_id.isnot(None)).count()} assigned")
+        print(f"  Partners:              {partner_count}")
+        print(f"  Chat Messages:         {msg_count_db}")
         print(f"{'=' * 55}")
         print(f"  Database:  cch.db")
         print(f"{'=' * 55}")
-        print(f"  LOGINS:")
+        print(f"  ADMIN / STAFF LOGINS:")
         print(f"  Admin:     admin@cch.org   / password123")
         print(f"  Dev:       dev@dev.com     / 1234")
         print(f"{'─' * 55}")
@@ -1192,6 +1443,11 @@ def seed():
         print(f"  David:     david@cch.org   / david     (1099, Mon/Tue/Wed)")
         print(f"  Ashley:    ashley@cch.org  / ashley    (VOL, Saturday)")
         print(f"  Ryan:      ryan@cch.org    / ryan      (OUTSIDE, no schedule)")
+        print(f"{'─' * 55}")
+        print(f"  COMMUNITY PARTNER LOGINS:")
+        print(f"  Jennifer:  jennifer@community.org / jennifer  (2 requests, chats with Emily & James)")
+        print(f"  Carlos:    carlos@community.org   / carlos    (1 request, chats with Emily)")
+        print(f"  Lisa:      lisa@community.org     / lisa      (1 request, chats with Maria)")
         print(f"{'=' * 55}")
 
     finally:

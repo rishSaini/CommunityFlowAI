@@ -3,6 +3,7 @@ import {
   LayoutDashboard, FileInput, MapPin, Sparkles,
   Bell, Activity, ChevronRight, TrendingUp, Shield,
   Zap, ArrowRight, Stethoscope, LogOut, Users, X, Calendar,
+  MessageCircle, ClipboardList,
 } from "lucide-react";
 import PartnerIntakeForm from "./components/forms/PartnerIntakeForm";
 import InlineChatbot from "./components/chatbot/InlineChatbot";
@@ -14,13 +15,15 @@ import StatsPanel from "./components/analytics/StatsPanel";
 import StaffDashboard from "./pages/StaffDashboard";
 import AdminProfiles from "./pages/AdminProfiles";
 import AdminTeamCalendar from "./components/calendar/AdminTeamCalendar";
+import PartnerDashboard from "./pages/PartnerDashboard";
+import StaffMessagesView from "./components/chat/StaffMessagesView";
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { requestsApi } from "./lib/api";
 import { initialRequests, getCityCoords } from "./data/mockData";
 import type { ResourceRequest, FormData } from "./types/index";
 
-type View = "intake" | "dashboard" | "staff" | "profiles" | "calendar";
+type View = "intake" | "dashboard" | "staff" | "profiles" | "calendar" | "partner" | "messages";
 
 const EMPTY_FORM: FormData = {
   requestor_name: "",
@@ -40,7 +43,7 @@ const EMPTY_FORM: FormData = {
 };
 
 // ── Hash-based navigation helpers ─────────────────────────────────────────
-const VALID_VIEWS: View[] = ["intake", "dashboard", "staff", "profiles"];
+const VALID_VIEWS: View[] = ["intake", "dashboard", "staff", "profiles", "calendar", "partner", "messages"];
 
 function getHashView(): View | null {
   const hash = window.location.hash.replace("#", "") as View;
@@ -54,10 +57,11 @@ function pushView(v: View) {
 // ── Authenticated shell ────────────────────────────────────────────────────
 function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   const { user, logout } = useAuth();
-  const isAdmin = user?.role === "admin";
-  const isStaff = user?.role === "staff";
+  const isAdmin   = user?.role === "admin";
+  const isStaff   = user?.role === "staff";
+  const isPartner = user?.role === "partner";
 
-  const defaultView: View = isAdmin ? "dashboard" : isStaff ? "staff" : "intake";
+  const defaultView: View = isAdmin ? "dashboard" : isStaff ? "staff" : isPartner ? "partner" : "intake";
 
   const [view, setViewState] = useState<View>(() => getHashView() ?? defaultView);
 
@@ -88,13 +92,16 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
 
   // Auto-correct view if it doesn't match the user's role
   useEffect(() => {
-    if (!isAdmin && (view === "dashboard" || view === "profiles")) {
-      setView(isStaff ? "staff" : "intake");
+    if (!isAdmin && (view === "dashboard" || view === "profiles" || view === "calendar")) {
+      setView(isStaff ? "staff" : isPartner ? "partner" : "intake");
     }
-    if (!isStaff && !isAdmin && view === "staff") {
-      setView("intake");
+    if (!isStaff && !isAdmin && (view === "staff" || view === "messages")) {
+      setView(isPartner ? "partner" : "intake");
     }
-  }, [isAdmin, isStaff]);
+    if (!isPartner && view === "partner") {
+      setView(isAdmin ? "dashboard" : isStaff ? "staff" : "intake");
+    }
+  }, [isAdmin, isStaff, isPartner]);
 
   // Load real requests from backend on mount (admin/staff only)
   useEffect(() => {
@@ -158,11 +165,13 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
 
   const highCount = requests.filter((r) => r.impactLevel === "High").length;
 
-  type NavTab = { id: View; label: string; icon: React.ElementType; adminOnly?: boolean; staffOnly?: boolean };
+  type NavTab = { id: View; label: string; icon: React.ElementType; adminOnly?: boolean; staffOnly?: boolean; partnerOnly?: boolean };
   const ALL_TABS: NavTab[] = [
+    { id: "partner",   label: "My Requests",    icon: ClipboardList,   partnerOnly: true },
     { id: "intake",    label: "Submit Request",  icon: FileInput       },
     { id: "dashboard", label: "Admin Dashboard", icon: LayoutDashboard, adminOnly: true },
     { id: "staff",     label: "Staff Portal",    icon: Stethoscope,     staffOnly: true },
+    { id: "messages",  label: "Messages",        icon: MessageCircle,   staffOnly: true },
     { id: "calendar",  label: "Calendar",         icon: Calendar,        adminOnly: true  },
     { id: "profiles",  label: "Profiles",        icon: Users,           adminOnly: true  },
   ];
@@ -170,6 +179,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.adminOnly && !isAdmin) return false;
     if (t.staffOnly && !isStaff && !isAdmin) return false;
+    if (t.partnerOnly && !isPartner) return false;
     return true;
   });
 
@@ -475,8 +485,14 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
           </div>
         )}
 
+        {/* ── PARTNER VIEW ─────────────────────────────────────────── */}
+        {view === "partner" && isPartner && <PartnerDashboard />}
+
         {/* ── STAFF VIEW ──────────────────────────────────────────────── */}
         {view === "staff" && (isStaff || isAdmin) && <StaffDashboard />}
+
+        {/* ── MESSAGES VIEW (staff + admin) ───────────────────────────── */}
+        {view === "messages" && (isStaff || isAdmin) && <StaffMessagesView />}
 
         {/* ── CALENDAR VIEW ──────────────────────────────────────────── */}
         {view === "calendar" && isAdmin && <AdminTeamCalendar />}

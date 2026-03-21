@@ -3,7 +3,7 @@ import { Loader2, Activity, Lock, Mail, Eye, EyeOff, ArrowRight, Users, Stethosc
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../lib/api";
 
-type LoginRole = "staff" | "admin";
+type LoginRole = "staff" | "admin" | "partner";
 
 interface Props {
   onPartnerContinue: () => void;
@@ -24,15 +24,27 @@ export default function LoginPage({ onPartnerContinue }: Props) {
     setError(null);
     try {
       const u = await login(email, password);
+      if (mode === "partner" && u.role !== "partner") {
+        logout();
+        setError("This is a staff/admin account. Use the Staff or Administrator login.");
+        setLoading(false);
+        return;
+      }
       if (mode === "staff" && u.role === "admin") {
         logout();
         setError("This account has admin access. Use the Administrator login instead.");
         setLoading(false);
         return;
       }
-      if (mode === "admin" && u.role === "staff") {
+      if (mode === "staff" && u.role === "partner") {
         logout();
-        setError("This account is staff-only. Use the Staff Member login instead.");
+        setError("This is a partner account. Use the Community Partner login.");
+        setLoading(false);
+        return;
+      }
+      if (mode === "admin" && u.role !== "admin") {
+        logout();
+        setError("This account does not have admin access.");
         setLoading(false);
         return;
       }
@@ -94,12 +106,9 @@ export default function LoginPage({ onPartnerContinue }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
 
               {/* Community Partner */}
-              <button
-                onClick={onPartnerContinue}
-                className="group bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl p-10 text-left hover:-translate-y-1 hover:shadow-xl transition-all duration-200 flex flex-col"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-sand-100 group-hover:bg-sage-50 flex items-center justify-center mb-8 transition-colors flex-shrink-0">
-                  <Users size={24} className="text-ink-muted group-hover:text-sage-700 transition-colors" />
+              <div className="group bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl p-10 text-left flex flex-col">
+                <div className="w-14 h-14 rounded-2xl bg-sand-100 flex items-center justify-center mb-8 flex-shrink-0">
+                  <Users size={24} className="text-ink-muted" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-ink text-2xl mb-2"
@@ -107,13 +116,24 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                     Community Partner
                   </h3>
                   <p className="text-sm text-ink-muted leading-relaxed">
-                    Submit a resource request for your community event. No account required — free and open to all Utah organizations.
+                    Submit a resource request or sign in to chat with your assigned CCH representative.
                   </p>
                 </div>
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-sage-700 mt-8 group-hover:gap-2.5 transition-all">
-                  Continue as guest <ArrowRight size={14} />
+                <div className="flex flex-col gap-2 mt-8">
+                  <button
+                    onClick={() => { setMode("partner"); setError(null); }}
+                    className="flex items-center justify-center gap-1.5 text-sm font-semibold text-white bg-sage-700 hover:bg-sage-800 px-4 py-2.5 rounded-xl transition-colors"
+                  >
+                    <Lock size={12} /> Sign in
+                  </button>
+                  <button
+                    onClick={onPartnerContinue}
+                    className="flex items-center justify-center gap-1.5 text-sm font-semibold text-sage-700 hover:text-sage-800 px-4 py-2 rounded-xl border border-sage-200 hover:border-sage-300 transition-colors"
+                  >
+                    Continue as guest <ArrowRight size={14} />
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {/* Staff */}
               <button

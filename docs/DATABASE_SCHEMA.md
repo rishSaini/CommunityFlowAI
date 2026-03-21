@@ -238,6 +238,23 @@ Reusable shift presets (Morning, Afternoon, Full Day, etc.) for quick calendar s
 
 ---
 
+## Table: `partner_messages`
+
+Direct messaging between community partners and their assigned staff representatives.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | String (UUID) | PK |
+| request_id | String FK → requests.id | Ties conversation to a specific request |
+| sender_id | String FK → users.id | Who sent the message |
+| sender_name | String | Denormalized sender name |
+| sender_role | String | `partner` \| `staff` \| `admin` |
+| content | Text | Message body |
+| read_at | DateTime | When recipient read the message (null = unread) |
+| created_at | DateTime | `utcnow()` |
+
+---
+
 ## Recommended Indexes
 
 ```sql
@@ -265,3 +282,4 @@ CREATE INDEX idx_ra_user ON request_assignments(user_id);
 |------|--------|--------|
 | 2026-03-21 | Scaffold | Initial creation — 6 tables |
 | 2026-03-21 | Claude | Added `shift_assignments`, `request_assignments`, `shift_templates` tables (9 tables total). Updated ER diagram. Added 5 new indexes. |
+| 2026-03-21 | Claude | Added `partner_messages` table (10 tables total). Partner accounts (role="partner") for direct messaging. 3 partner logins seeded with demo conversations. |
