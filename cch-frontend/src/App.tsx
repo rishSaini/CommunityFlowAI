@@ -7,6 +7,7 @@ import {
 import PartnerIntakeForm from "./components/forms/PartnerIntakeForm";
 import InlineChatbot from "./components/chatbot/InlineChatbot";
 import UtahMap from "./components/map/UtahMap";
+import AdminDispatchMap from "./components/map/AdminDispatchMap";
 import LiveFeed from "./components/dashboard/LiveFeed";
 import StatsPanel from "./components/analytics/StatsPanel";
 import StaffDashboard from "./pages/StaffDashboard";
@@ -14,7 +15,7 @@ import AdminProfiles from "./pages/AdminProfiles";
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { requestsApi } from "./lib/api";
-import { initialRequests } from "./data/mockData";
+import { initialRequests, getCityCoords } from "./data/mockData";
 import type { ResourceRequest, FormData } from "./types/index";
 
 type View = "intake" | "dashboard" | "staff" | "profiles";
@@ -76,6 +77,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   }, []);
   const [requests, setRequests] = useState<ResourceRequest[]>(initialRequests);
   const [banner, setBanner]     = useState<ResourceRequest | null>(null);
+  const [mapMode, setMapMode]   = useState<"equity" | "dispatch">("dispatch");
 
   const [form, setForm]               = useState<FormData>(EMPTY_FORM);
   const [flashFields, setFlashFields] = useState<Array<keyof FormData>>([]);
@@ -105,7 +107,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
           tags: r.ai_tags ?? [],
           fulfillmentMethod: r.fulfillment_type === "staff" ? "Staffed" : "Mailed",
           aiReasoning: r.ai_summary ?? "AI triage in progress.",
-          coordinates: [-111.5, 39.5],
+          coordinates: getCityCoords(r.event_city) ?? [-111.5, 39.5],
           submittedAt: r.created_at ?? new Date().toISOString(),
         };
       });
@@ -415,13 +417,40 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
               <div className="xl:col-span-2 bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl overflow-hidden shadow-sm">
                 <div className="px-6 py-4 border-b border-sand-100 flex items-center gap-2.5">
                   <MapPin size={14} className="text-sage-600" />
-                  <div>
-                    <h3 className="font-semibold text-ink text-sm">Geographic Equity Map</h3>
-                    <p className="text-[11px] text-ink-muted mt-0.5">Hover counties · drag to pan · scroll to zoom</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-ink text-sm">
+                      {mapMode === "dispatch" ? "Dispatch Intelligence Map" : "Geographic Equity Map"}
+                    </h3>
+                    <p className="text-[11px] text-ink-muted mt-0.5">
+                      {mapMode === "dispatch"
+                        ? "Click an event pin · see closest available staff · AI dispatch recommendations"
+                        : "Hover counties · drag to pan · scroll to zoom"}
+                    </p>
+                  </div>
+                  {/* Map mode tabs */}
+                  <div className="flex items-center gap-1 bg-sand-100/70 rounded-xl p-0.5 flex-shrink-0">
+                    <button
+                      onClick={() => setMapMode("dispatch")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                        mapMode === "dispatch" ? "bg-white text-ink shadow-sm" : "text-ink-muted hover:text-ink"
+                      }`}
+                    >
+                      Dispatch
+                    </button>
+                    <button
+                      onClick={() => setMapMode("equity")}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                        mapMode === "equity" ? "bg-white text-ink shadow-sm" : "text-ink-muted hover:text-ink"
+                      }`}
+                    >
+                      Equity
+                    </button>
                   </div>
                 </div>
                 <div style={{ height: 520 }}>
-                  <UtahMap requests={requests} />
+                  {mapMode === "dispatch"
+                    ? <AdminDispatchMap requests={requests} />
+                    : <UtahMap requests={requests} />}
                 </div>
               </div>
               <div className="xl:col-span-1 bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl p-5 flex flex-col shadow-sm" style={{ height: 600 }}>
