@@ -41,6 +41,12 @@ TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
 # ── Travel ──────────────────────────────────────────────────
 TRAVEL_BUFFER_MINUTES = int(os.getenv("TRAVEL_BUFFER_MINUTES", "15"))
 
+# ── CORS ────────────────────────────────────────────────────
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5174,http://localhost:5173",
+).split(",")
+
 # ── Utah Region Lock — core.md §1 ──────────────────────────
 UTAH_CENTER_LAT = 39.3210
 UTAH_CENTER_LNG = -111.0937

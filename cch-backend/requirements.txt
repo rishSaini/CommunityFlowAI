@@ -7,3 +7,5 @@ python-dotenv
 pydantic>=2.0
 python-multipart
 httpx
+googlemaps>=4.10.0
+websockets
