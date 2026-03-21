@@ -24,6 +24,8 @@ const WELCOME =
 
 const FIELD_DISPLAY: Record<FieldKey, string> = {
   requestor_name:      "Organization",
+  requestor_email:     "Email",
+  requestor_phone:     "Phone",
   event_date:          "Event Date",
   event_city:          "City",
   county:              "County",
@@ -33,7 +35,7 @@ const FIELD_DISPLAY: Record<FieldKey, string> = {
 };
 
 function ProgressBar({ form }: { form: FormData }) {
-  const all: FieldKey[] = ["requestor_name", "event_date", "event_city", "county", "event_zip", "estimated_attendees", "materials_requested"];
+  const all: FieldKey[] = ["requestor_name", "requestor_email", "requestor_phone", "event_date", "event_city", "county", "event_zip", "estimated_attendees", "materials_requested"];
   const filled = all.filter((f) => {
     if (f === "materials_requested") return (form.materials_requested?.length ?? 0) > 0;
     return !!(form as Record<string, unknown>)[f];
@@ -257,6 +259,8 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
                 onClick={() => {
                   const prompts: Record<FieldKey, string> = {
                     requestor_name:      "We're from [Organization Name]",
+                    requestor_email:     "My email is contact@org.com",
+                    requestor_phone:     "My phone number is (801) 555-0100",
                     event_date:          "The event is on April 22, 2026",
                     event_city:          "It's in Salt Lake City",
                     county:              "Salt Lake County",

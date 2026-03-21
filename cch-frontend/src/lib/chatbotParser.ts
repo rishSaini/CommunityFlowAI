@@ -116,7 +116,7 @@ export interface ParseResult {
   detectedFields: string[];
 }
 
-export type FieldKey = "requestor_name" | "event_date" | "event_city" | "county" | "event_zip" | "estimated_attendees" | "materials_requested";
+export type FieldKey = "requestor_name" | "requestor_email" | "requestor_phone" | "event_date" | "event_city" | "county" | "event_zip" | "estimated_attendees" | "materials_requested";
 
 export function parseMessage(msg: string, currentForm: FormData): ParseResult {
   const text   = msg.toLowerCase().trim();
@@ -240,7 +240,27 @@ export function parseMessage(msg: string, currentForm: FormData): ParseResult {
     confidence.materials_requested = "high";
   }
 
-  // ── 7. Organization name ────────────────────────────────────────────
+  // ── 7. Email ────────────────────────────────────────────────────────
+  if (!currentForm.requestor_email) {
+    const emailMatch = text.match(/\b[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}\b/i);
+    if (emailMatch) {
+      result.requestor_email = emailMatch[0];
+      confidence.requestor_email = "high";
+      detected.push("requestor_email");
+    }
+  }
+
+  // ── 8. Phone ────────────────────────────────────────────────────────
+  if (!currentForm.requestor_phone) {
+    const phoneMatch = text.match(/\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/);
+    if (phoneMatch) {
+      result.requestor_phone = phoneMatch[0];
+      confidence.requestor_phone = "high";
+      detected.push("requestor_phone");
+    }
+  }
+
+  // ── 9. Organization name ────────────────────────────────────────────
   if (!currentForm.requestor_name) {
     const orgPatterns = [
       /(?:i(?:'m| am) (?:from |with |at )?|(?:representing |on behalf of |for ))([A-Z][^\.,!?]+?)(?:\.|,|!|\?|$| and )/,
@@ -266,11 +286,13 @@ export function parseMessage(msg: string, currentForm: FormData): ParseResult {
 
 // ── Determine which required fields are still missing ────────────────────
 const REQUIRED_FIELDS: FieldKey[] = [
-  "requestor_name", "event_date", "event_city", "county", "event_zip", "estimated_attendees", "materials_requested",
+  "requestor_name", "requestor_email", "requestor_phone", "event_date", "event_city", "county", "event_zip", "estimated_attendees", "materials_requested",
 ];
 
 export const FIELD_LABELS: Record<FieldKey, string> = {
   requestor_name:       "organization name",
+  requestor_email:      "contact email",
+  requestor_phone:      "phone number",
   event_date:           "event date",
   event_city:           "city",
   county:               "county",
@@ -282,6 +304,8 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
 export function getMissingFields(form: FormData): FieldKey[] {
   const missing: FieldKey[] = [];
   if (!form.requestor_name)                    missing.push("requestor_name");
+  if (!form.requestor_email)                   missing.push("requestor_email");
+  if (!form.requestor_phone)                   missing.push("requestor_phone");
   if (!form.event_date)                        missing.push("event_date");
   if (!form.event_city)                        missing.push("event_city");
   if (!form.county)                            missing.push("county");
@@ -325,6 +349,8 @@ export function buildBotReply(
   const nextField = missing[0];
   const prompts: Record<FieldKey, string> = {
     requestor_name:      "What's the name of your organization or school?",
+    requestor_email:     "What's the best email address to reach you at?",
+    requestor_phone:     "What's a phone number we can reach you at?",
     event_date:          "What date is the event? (e.g., April 22, 2026)",
     event_city:          "What city will the event be held in?",
     county:              "Which Utah county is the event in?",
