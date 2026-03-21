@@ -134,8 +134,24 @@ export default function TaskDetailModal({ requestId, onClose }: Props) {
               Loading task details...
             </div>
           ) : !request ? (
-            <div className="flex items-center justify-center py-12 text-ink-muted text-sm">
-              Failed to load task details
+            <div className="flex flex-col items-center justify-center py-12 text-ink-muted text-sm gap-2">
+              <p>Could not load full details from server.</p>
+              <p className="text-[11px] text-ink-faint">The backend may be starting up — try again in a moment.</p>
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  Promise.all([
+                    requestsApi.get(requestId),
+                    dispatchApi.getTeam(requestId).catch(() => [] as RequestAssignmentInfo[]),
+                  ]).then(([req, teamData]) => {
+                    setRequest(req);
+                    setTeam(teamData);
+                  }).catch(() => {}).finally(() => setLoading(false));
+                }}
+                className="mt-2 text-xs font-semibold text-sage-700 hover:text-sage-800 border border-sage-300 px-4 py-1.5 rounded-xl hover:border-sage-400 transition-colors"
+              >
+                Retry
+              </button>
             </div>
           ) : (
             <>

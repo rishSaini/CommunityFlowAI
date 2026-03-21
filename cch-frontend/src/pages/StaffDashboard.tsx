@@ -57,7 +57,7 @@ export default function StaffDashboard() {
   } : null;
 
   const [profile, setProfile] = useState<StaffProfile>(authProfile ?? mockStaffProfiles[0]);
-  const [tasks, setTasks]     = useState<StaffTask[]>([]);
+  const [tasks, setTasks]     = useState<StaffTask[]>(mockStaffTasks);
   const [tab, setTab]         = useState<Tab>("tasks");
   const [statusOpen, setStatusOpen] = useState(false);
   const [detailRequestId, setDetailRequestId] = useState<string | null>(null);

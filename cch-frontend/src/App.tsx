@@ -84,7 +84,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   useEffect(() => {
     if (!window.location.hash) pushView(view);
   }, []);
-  const [requests, setRequests]     = useState<ResourceRequest[]>([]);
+  const [requests, setRequests]     = useState<ResourceRequest[]>(initialRequests);
   const [banner, setBanner]         = useState<ResourceRequest | null>(null);
   const [mapMode, setMapMode]       = useState<"equity" | "dispatch">("dispatch");
   const [marketingForm, setMarketingForm] = useState<{ form: FormData; score: number } | null>(null);
