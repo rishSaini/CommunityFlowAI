@@ -7,7 +7,7 @@ import { scaleLinear } from "d3-scale";
 import { utahCountyData, mockStaffProfiles } from "../../data/mockData";
 import type { ResourceRequest } from "../../types/index";
 import type { StaffProfile } from "../../types/index";
-import { Navigation, User, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Navigation, User, CheckCircle2, Clock, XCircle, FileText } from "lucide-react";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json";
 
@@ -49,6 +49,7 @@ interface RankedStaff {
 
 interface Props {
   requests: ResourceRequest[];
+  onRequestClick?: (requestId: string) => void;
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -57,7 +58,7 @@ const PRIORITY_COLOR: Record<string, string> = {
   Low:    "#3b82f6",
 };
 
-export default function AdminDispatchMap({ requests }: Props) {
+export default function AdminDispatchMap({ requests, onRequestClick }: Props) {
   const [selectedReq, setSelectedReq]   = useState<ResourceRequest | null>(null);
   const [hoveredId,   setHoveredId]     = useState<string | null>(null);
   const [mousePos,    setMousePos]      = useState({ x: 0, y: 0 });
@@ -304,6 +305,14 @@ export default function AdminDispatchMap({ requests }: Props) {
                     {new Date(selectedReq.eventDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     {" · "}{selectedReq.attendeeCount} attendees
                   </p>
+                  {onRequestClick && (
+                    <button
+                      onClick={() => onRequestClick(selectedReq.id)}
+                      className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      <FileText size={10} /> View Full Details
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={() => setSelectedReq(null)}

@@ -17,6 +17,7 @@ import AdminProfiles from "./pages/AdminProfiles";
 import AdminTeamCalendar from "./components/calendar/AdminTeamCalendar";
 import PartnerDashboard from "./pages/PartnerDashboard";
 import StaffMessagesView from "./components/chat/StaffMessagesView";
+import TaskDetailModal from "./components/schedule/TaskDetailModal";
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { requestsApi } from "./lib/api";
@@ -86,6 +87,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   const [banner, setBanner]         = useState<ResourceRequest | null>(null);
   const [mapMode, setMapMode]       = useState<"equity" | "dispatch">("dispatch");
   const [marketingForm, setMarketingForm] = useState<{ form: FormData; score: number } | null>(null);
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
 
   const [form, setForm]               = useState<FormData>(EMPTY_FORM);
   const [flashFields, setFlashFields] = useState<Array<keyof FormData>>([]);
@@ -474,12 +476,12 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
                 </div>
                 <div style={{ height: 520 }}>
                   {mapMode === "dispatch"
-                    ? <AdminDispatchMap requests={requests} />
+                    ? <AdminDispatchMap requests={requests} onRequestClick={setDetailRequestId} />
                     : <UtahMap requests={requests} />}
                 </div>
               </div>
               <div className="xl:col-span-1 bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl p-5 flex flex-col shadow-sm" style={{ height: 600 }}>
-                <LiveFeed requests={requests} />
+                <LiveFeed requests={requests} onRequestClick={setDetailRequestId} />
               </div>
             </div>
           </div>
@@ -546,6 +548,14 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Request Detail Modal (Admin) ─────────────────────────────────── */}
+      {detailRequestId && (
+        <TaskDetailModal
+          requestId={detailRequestId}
+          onClose={() => setDetailRequestId(null)}
+        />
       )}
 
       <footer className="border-t border-sand-200 bg-paper py-4 px-6 mt-4">

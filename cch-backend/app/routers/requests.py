@@ -312,6 +312,14 @@ def get_request(
                 detail="You do not have access to this request",
             )
 
+    # Partners may only access their own requests (matched by email)
+    elif current_user.role == "partner":
+        if request.requestor_email != current_user.email:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this request",
+            )
+
     return request
 
 

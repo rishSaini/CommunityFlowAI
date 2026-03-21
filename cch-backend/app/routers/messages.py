@@ -118,6 +118,15 @@ def list_channels(
             last_message_at=last_msg.created_at if last_msg else None,
             unread_count=unread,
             status=req.status,
+            event_time=req.event_time,
+            event_zip=req.event_zip,
+            estimated_attendees=req.estimated_attendees,
+            materials_requested=req.materials_requested,
+            special_instructions=req.special_instructions,
+            fulfillment_type=req.fulfillment_type,
+            urgency_level=req.urgency_level,
+            ai_summary=req.ai_summary,
+            ai_priority_score=req.ai_priority_score,
         ))
 
     return channels

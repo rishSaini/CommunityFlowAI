@@ -145,6 +145,16 @@ class ChannelResponse(BaseModel):
     last_message_at: Optional[datetime] = None
     unread_count: int = 0
     status: str
+    # Enriched request details
+    event_time: Optional[str] = None
+    event_zip: Optional[str] = None
+    estimated_attendees: Optional[int] = None
+    materials_requested: Optional[list] = None
+    special_instructions: Optional[str] = None
+    fulfillment_type: Optional[str] = None
+    urgency_level: Optional[str] = None
+    ai_summary: Optional[str] = None
+    ai_priority_score: Optional[float] = None
 
 
 # ── Chatbot ────────────────────────────────────────────────

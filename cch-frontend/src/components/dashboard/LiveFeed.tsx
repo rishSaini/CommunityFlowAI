@@ -52,7 +52,7 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
   );
 }
 
-function RequestCard({ request, rank }: { request: ResourceRequest; rank: number }) {
+function RequestCard({ request, rank, onRequestClick }: { request: ResourceRequest; rank: number; onRequestClick?: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = IMPACT[request.impactLevel];
 
@@ -70,7 +70,10 @@ function RequestCard({ request, rank }: { request: ResourceRequest; rank: number
     "bg-slate-100 text-slate-500";
 
   return (
-    <div className={`rounded-2xl border ${cfg.ring} p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md`}>
+    <div
+      className={`rounded-2xl border ${cfg.ring} p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${onRequestClick ? "cursor-pointer" : ""}`}
+      onClick={() => onRequestClick?.(request.id)}
+    >
       <div className="flex items-start gap-3">
         {/* Score ring */}
         <ScoreRing score={request.priorityScore} color={cfg.bar} />
@@ -134,7 +137,7 @@ function RequestCard({ request, rank }: { request: ResourceRequest; rank: number
 
       {/* AI Reasoning toggle */}
       <button
-        onClick={() => setExpanded((e) => !e)}
+        onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
         className="mt-2.5 w-full flex items-center gap-1.5 text-[11px] text-indigo-600 font-semibold hover:text-indigo-800 transition-colors group"
       >
         <Sparkles size={11} className="group-hover:rotate-12 transition-transform" />
@@ -156,9 +159,9 @@ function RequestCard({ request, rank }: { request: ResourceRequest; rank: number
   );
 }
 
-interface Props { requests: ResourceRequest[]; }
+interface Props { requests: ResourceRequest[]; onRequestClick?: (requestId: string) => void; }
 
-export default function LiveFeed({ requests }: Props) {
+export default function LiveFeed({ requests, onRequestClick }: Props) {
   const sorted = [...requests].sort((a, b) => b.priorityScore - a.priorityScore);
   const high   = sorted.filter((r) => r.impactLevel === "High").length;
   const med    = sorted.filter((r) => r.impactLevel === "Medium").length;
@@ -183,7 +186,7 @@ export default function LiveFeed({ requests }: Props) {
 
       <div className="flex-1 overflow-y-auto space-y-2.5 custom-scroll min-h-0">
         {sorted.map((req, i) => (
-          <RequestCard key={req.id} request={req} rank={i + 1} />
+          <RequestCard key={req.id} request={req} rank={i + 1} onRequestClick={onRequestClick} />
         ))}
         {sorted.length === 0 && (
           <div className="flex flex-col items-center justify-center h-40 text-slate-400">

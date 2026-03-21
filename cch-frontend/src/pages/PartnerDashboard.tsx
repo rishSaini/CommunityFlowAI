@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import {
   MessageCircle, ClipboardList, Calendar, MapPin,
-  Users, Loader2, ChevronRight, Clock,
+  Users, Loader2, ChevronRight, Clock, Package,
+  UserCheck, Sparkles, ChevronDown, ChevronUp,
 } from "lucide-react";
+import MaterialBadge from "../components/ui/MaterialBadge";
 import ChatChannel from "../components/chat/ChatChannel";
 import { messagesApi } from "../lib/api";
 import type { ChannelResponse } from "../lib/api";
@@ -23,6 +25,124 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   in_progress: { label: "In Progress", color: "bg-sage-50 text-sage-700 border-sage-200" },
   fulfilled:   { label: "Complete",    color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 };
+
+function PartnerRequestCard({ ch, onChat }: { ch: ChannelResponse; onChat: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const statusInfo = STATUS_LABEL[ch.status] || STATUS_LABEL.submitted;
+  const hasRep = !!ch.staff_name;
+  const urgencyDot = ch.urgency_level ? URGENCY_DOT[ch.urgency_level] : null;
+
+  const materials: string[] = (ch.materials_requested ?? []).map((m) =>
+    typeof m === "string" ? m : m.material_id
+  );
+
+  return (
+    <div
+      className="bg-white/80 backdrop-blur-sm border border-sand-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer"
+      onClick={onChat}
+    >
+      <div className="p-4">
+        {/* Top row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-semibold text-ink truncate">{ch.event_name}</h3>
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusInfo.color}`}>
+                {statusInfo.label}
+              </span>
+              {urgencyDot && (
+                <span className={`w-2 h-2 rounded-full ${urgencyDot}`} title={`${ch.urgency_level} urgency`} />
+              )}
+            </div>
+            <div className="flex items-center gap-3 mt-1 text-[11px] text-ink-muted flex-wrap">
+              <span className="flex items-center gap-1"><Calendar size={9} />{new Date(ch.event_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+              {ch.event_time && <span className="flex items-center gap-1"><Clock size={9} />{ch.event_time}</span>}
+              <span className="flex items-center gap-1"><MapPin size={9} />{ch.event_city}{ch.event_zip ? `, ${ch.event_zip}` : ""}</span>
+              {ch.estimated_attendees != null && ch.estimated_attendees > 0 && (
+                <span className="flex items-center gap-1"><Users size={9} />{ch.estimated_attendees}</span>
+              )}
+              {ch.fulfillment_type && (
+                <span className={`flex items-center gap-1 font-medium px-1.5 py-0.5 rounded-md ${
+                  ch.fulfillment_type === "staff" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {ch.fulfillment_type === "staff" ? <><UserCheck size={9} />Staffed</> : <><Package size={9} />Mailed</>}
+                </span>
+              )}
+            </div>
+          </div>
+          <ChevronRight size={14} className="text-ink-faint mt-1 flex-shrink-0" />
+        </div>
+
+        {/* Materials */}
+        {materials.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2.5">
+            {materials.map((n) => (
+              <MaterialBadge key={n} name={n} size="sm" />
+            ))}
+          </div>
+        )}
+
+        {/* AI Summary toggle */}
+        {ch.ai_summary && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+              className="mt-2 w-full flex items-center gap-1.5 text-[11px] text-indigo-600 font-semibold hover:text-indigo-800 transition-colors group"
+            >
+              <Sparkles size={11} className="group-hover:rotate-12 transition-transform" />
+              AI Triage Summary
+              {expanded ? <ChevronUp size={11} className="ml-auto" /> : <ChevronDown size={11} className="ml-auto" />}
+            </button>
+            {expanded && (
+              <div className="mt-1.5 bg-indigo-50/70 rounded-xl p-2.5 border border-indigo-100 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                <p className="text-[11px] text-slate-600 leading-relaxed">{ch.ai_summary}</p>
+                {ch.ai_priority_score != null && (
+                  <p className="text-[10px] text-indigo-600 font-semibold mt-1.5">Priority Score: {ch.ai_priority_score}/100</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Special Instructions */}
+        {ch.special_instructions && (
+          <p className="text-[11px] text-ink-faint mt-2 italic truncate" onClick={(e) => e.stopPropagation()}>
+            Note: {ch.special_instructions}
+          </p>
+        )}
+
+        {/* Representative + Chat preview */}
+        <div className="mt-3 pt-3 border-t border-sand-100 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-sage-100 border border-sage-200 flex items-center justify-center flex-shrink-0">
+            {hasRep
+              ? <span className="text-[10px] font-bold text-sage-700">{ch.staff_name!.split(" ").map(n => n[0]).join("")}</span>
+              : <Users size={11} className="text-sage-500" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-ink">
+              {hasRep ? ch.staff_name : "Awaiting assignment"}
+            </p>
+            {ch.last_message ? (
+              <p className="text-[11px] text-ink-muted truncate mt-0.5">{ch.last_message}</p>
+            ) : (
+              <p className="text-[11px] text-ink-faint mt-0.5 italic">
+                {hasRep ? "Send a message to your representative" : "A team member will be assigned soon"}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {ch.unread_count > 0 && (
+              <span className="w-5 h-5 rounded-full bg-sage-600 text-white text-[9px] font-black flex items-center justify-center">
+                {ch.unread_count}
+              </span>
+            )}
+            <MessageCircle size={14} className="text-sage-500" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function PartnerDashboard() {
   const { user } = useAuth();
@@ -81,64 +201,9 @@ export default function PartnerDashboard() {
 
       {!loading && channels.length > 0 && (
         <div className="space-y-3">
-          {channels.map((ch) => {
-            const statusInfo = STATUS_LABEL[ch.status] || STATUS_LABEL.submitted;
-            const hasRep = !!ch.staff_name;
-
-            return (
-              <div key={ch.request_id}
-                className="bg-white/80 backdrop-blur-sm border border-sand-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer"
-                onClick={() => setSelectedChannel(ch)}>
-                <div className="p-4">
-                  {/* Top row */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-semibold text-ink truncate">{ch.event_name}</h3>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusInfo.color}`}>
-                          {statusInfo.label}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 text-[11px] text-ink-muted">
-                        <span className="flex items-center gap-1"><Calendar size={9} />{new Date(ch.event_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                        <span className="flex items-center gap-1"><MapPin size={9} />{ch.event_city}</span>
-                      </div>
-                    </div>
-                    <ChevronRight size={14} className="text-ink-faint mt-1 flex-shrink-0" />
-                  </div>
-
-                  {/* Representative + Chat preview */}
-                  <div className="mt-3 pt-3 border-t border-sand-100 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-sage-100 border border-sage-200 flex items-center justify-center flex-shrink-0">
-                      {hasRep
-                        ? <span className="text-[10px] font-bold text-sage-700">{ch.staff_name!.split(" ").map(n => n[0]).join("")}</span>
-                        : <Users size={11} className="text-sage-500" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-ink">
-                        {hasRep ? ch.staff_name : "Awaiting assignment"}
-                      </p>
-                      {ch.last_message ? (
-                        <p className="text-[11px] text-ink-muted truncate mt-0.5">{ch.last_message}</p>
-                      ) : (
-                        <p className="text-[11px] text-ink-faint mt-0.5 italic">
-                          {hasRep ? "Send a message to your representative" : "A team member will be assigned soon"}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {ch.unread_count > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-sage-600 text-white text-[9px] font-black flex items-center justify-center">
-                          {ch.unread_count}
-                        </span>
-                      )}
-                      <MessageCircle size={14} className="text-sage-500" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {channels.map((ch) => (
+            <PartnerRequestCard key={ch.request_id} ch={ch} onChat={() => setSelectedChannel(ch)} />
+          ))}
         </div>
       )}
     </div>

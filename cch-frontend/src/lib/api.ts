@@ -276,6 +276,16 @@ export interface ChannelResponse {
   last_message_at: string | null;
   unread_count: number;
   status: string;
+  // Enriched request details
+  event_time?: string | null;
+  event_zip?: string | null;
+  estimated_attendees?: number | null;
+  materials_requested?: Array<string | { material_id: string; quantity: number }> | null;
+  special_instructions?: string | null;
+  fulfillment_type?: string | null;
+  urgency_level?: string | null;
+  ai_summary?: string | null;
+  ai_priority_score?: number | null;
 }
 
 export const messagesApi = {
