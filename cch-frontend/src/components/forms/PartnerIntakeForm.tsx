@@ -6,7 +6,7 @@ import {
   Heart, Activity, Smile, Leaf, Mail, Phone,
   Tag, FileText, Clock, Share2,
 } from "lucide-react";
-import { utahCountyData, countyCoordinates, triageRequest } from "../../data/mockData";
+import { utahCountyData, countyCoordinates, triageRequest, getCityCoords } from "../../data/mockData";
 import { requestsApi } from "../../lib/api";
 import type { ResourceRequest, FormData } from "../../types/index";
 
@@ -77,7 +77,7 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
 
       // Build local ResourceRequest for the dashboard (use backend fields + triage fallback)
       const triage = triageRequest({ ...form });
-      const coords = countyCoordinates[form.county] ?? [-111.5, 39.5];
+      const coords = getCityCoords(form.event_city) ?? countyCoordinates[form.county] ?? [-111.5, 39.5];
 
       const req: ResourceRequest = {
         id:              response.id,

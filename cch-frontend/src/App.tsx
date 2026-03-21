@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   LayoutDashboard, FileInput, MapPin, Sparkles,
-  Bell, Activity, ChevronRight, TrendingUp, Shield,
+  Activity, ChevronRight, TrendingUp, Shield,
   Zap, ArrowRight, Stethoscope, LogOut, Users, X, Calendar,
   MessageCircle, ClipboardList,
 } from "lucide-react";
@@ -183,6 +183,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
     if (t.adminOnly && !isAdmin) return false;
     if (t.staffOnly && !isStaff && !isAdmin) return false;
     if (t.partnerOnly && !isPartner) return false;
+    if (t.id === "intake" && isAdmin) return false;
     return true;
   });
 
@@ -235,17 +236,6 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
 
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-3">
-            {highCount > 0 && (
-              <div className="relative">
-                <button className="w-9 h-9 rounded-xl bg-sand-100/70 hover:bg-sand-200/80 transition-colors flex items-center justify-center text-ink-muted">
-                  <Bell size={14} />
-                </button>
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-clay-600 border-2 border-paper text-paper text-[8px] flex items-center justify-center font-black">
-                  {highCount}
-                </span>
-              </div>
-            )}
-
             {user && (
               <div className="hidden sm:flex items-center gap-2">
                 <div className="text-right">
