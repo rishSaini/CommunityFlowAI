@@ -4,12 +4,11 @@ import {
   CalendarDays, MapPin, Users, UserCheck,
   ChevronDown, Sparkles, Utensils, ShieldCheck,
   Heart, Activity, Smile, Leaf, Mail, Phone,
-  Tag, FileText, Clock,
+  Tag, FileText, Clock, Share2,
 } from "lucide-react";
 import { utahCountyData, countyCoordinates, triageRequest } from "../../data/mockData";
 import { requestsApi } from "../../lib/api";
 import type { ResourceRequest, FormData } from "../../types/index";
-import PostGenerator from "../social/PostGenerator";
 
 const NEEDS: { label: string; icon: React.ReactNode; staff: boolean }[] = [
   { label: "Nutrition Toolkits",       icon: <Utensils    size={13} />, staff: false },
@@ -29,7 +28,7 @@ interface Props {
   form: FormData;
   onChange: (updates: Partial<FormData>) => void;
   flashFields?: FlashField[];
-  onSubmit: (req: ResourceRequest) => void;
+  onSubmit: (req: ResourceRequest, submittedForm: FormData, score: number) => void;
   onReset: () => void;
 }
 
@@ -95,8 +94,9 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
         submittedAt:     response.created_at ?? new Date().toISOString(),
       };
 
-      onSubmit(req);
-      setSavedForm({ ...form });
+      const snapshot = { ...form };
+      onSubmit(req, snapshot, req.priorityScore);
+      setSavedForm(snapshot);
       setSavedScore(req.priorityScore);
       setSubmitted(true);
     } catch (err: unknown) {
@@ -129,12 +129,12 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
 
   if (submitted && savedForm) {
     return (
-      <div className="animate-fade-in space-y-5">
+      <div className="animate-fade-in space-y-4">
         <div className="flex items-center gap-4 p-5 bg-sage-50 border border-sage-200 rounded-3xl">
           <div className="w-12 h-12 rounded-2xl bg-sage-600 flex items-center justify-center flex-shrink-0">
             <CheckCircle2 size={22} className="text-paper" />
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="font-semibold text-ink text-base" style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: "18px" }}>
               Request Submitted
             </h3>
@@ -142,11 +142,21 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
               Priority score: <span className="font-bold text-sage-700">{savedScore}</span> · AI triage in progress
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-1.5 text-[11px] text-sage-700 font-semibold">
+          <div className="flex items-center gap-1.5 text-[11px] text-sage-700 font-semibold">
             <Sparkles size={11} /> AI-powered
           </div>
         </div>
-        <PostGenerator form={savedForm} priorityScore={savedScore} />
+
+        <div className="p-4 bg-white border border-sand-200 rounded-3xl flex items-center gap-4">
+          <div className="w-10 h-10 rounded-2xl bg-sand-100 flex items-center justify-center flex-shrink-0">
+            <Share2 size={16} className="text-ink-muted" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-ink">Your marketing kit is ready</p>
+            <p className="text-xs text-ink-muted mt-0.5">LinkedIn post · Instagram caption · Email template · Print flyer</p>
+          </div>
+        </div>
+
         <button
           onClick={() => { setSubmitted(false); onReset(); }}
           className="w-full py-2.5 rounded-2xl border border-sand-200 text-sm text-ink-muted hover:text-ink hover:border-sand-300 transition-colors"

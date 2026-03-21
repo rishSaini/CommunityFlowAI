@@ -2,10 +2,11 @@ import { useState, useCallback, useEffect } from "react";
 import {
   LayoutDashboard, FileInput, MapPin, Sparkles,
   Bell, Activity, ChevronRight, TrendingUp, Shield,
-  Zap, ArrowRight, Stethoscope, LogOut, Users,
+  Zap, ArrowRight, Stethoscope, LogOut, Users, X,
 } from "lucide-react";
 import PartnerIntakeForm from "./components/forms/PartnerIntakeForm";
 import InlineChatbot from "./components/chatbot/InlineChatbot";
+import PostGenerator from "./components/social/PostGenerator";
 import UtahMap from "./components/map/UtahMap";
 import AdminDispatchMap from "./components/map/AdminDispatchMap";
 import LiveFeed from "./components/dashboard/LiveFeed";
@@ -75,9 +76,10 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   useEffect(() => {
     if (!window.location.hash) pushView(view);
   }, []);
-  const [requests, setRequests] = useState<ResourceRequest[]>(initialRequests);
-  const [banner, setBanner]     = useState<ResourceRequest | null>(null);
-  const [mapMode, setMapMode]   = useState<"equity" | "dispatch">("dispatch");
+  const [requests, setRequests]     = useState<ResourceRequest[]>(initialRequests);
+  const [banner, setBanner]         = useState<ResourceRequest | null>(null);
+  const [mapMode, setMapMode]       = useState<"equity" | "dispatch">("dispatch");
+  const [marketingForm, setMarketingForm] = useState<{ form: FormData; score: number } | null>(null);
 
   const [form, setForm]               = useState<FormData>(EMPTY_FORM);
   const [flashFields, setFlashFields] = useState<Array<keyof FormData>>([]);
@@ -134,11 +136,11 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
 
   const handleReset = useCallback(() => setForm(EMPTY_FORM), []);
 
-  const handleNewRequest = (req: ResourceRequest) => {
+  const handleNewRequest = (req: ResourceRequest, submittedForm: FormData, score: number) => {
     setRequests((p) => [req, ...p]);
     setBanner(req);
-    setTimeout(() => setBanner(null), 5000);
-    setTimeout(() => setView(isAdmin ? "dashboard" : "staff"), 1400);
+    setTimeout(() => setBanner(null), 6000);
+    setMarketingForm({ form: submittedForm, score });
     setForm(EMPTY_FORM);
   };
 
@@ -467,6 +469,52 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
         {view === "profiles" && isAdmin && <AdminProfiles />}
 
       </main>
+
+      {/* ── Marketing Materials Modal ─────────────────────────────────── */}
+      {marketingForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
+            onClick={() => setMarketingForm(null)}
+          />
+          {/* Panel */}
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-paper rounded-3xl shadow-2xl border border-sand-200 flex flex-col overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-sand-100 flex-shrink-0">
+              <div className="w-8 h-8 rounded-2xl bg-sage-600 flex items-center justify-center">
+                <Sparkles size={14} className="text-paper" />
+              </div>
+              <div className="flex-1">
+                <h2 className="font-semibold text-ink text-base leading-tight" style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>
+                  Your Event Marketing Kit
+                </h2>
+                <p className="text-[11px] text-ink-muted mt-0.5">AI-generated · ready to share on LinkedIn, Instagram, and email</p>
+              </div>
+              <button
+                onClick={() => setMarketingForm(null)}
+                className="w-8 h-8 rounded-xl hover:bg-sand-100 flex items-center justify-center text-ink-muted hover:text-ink transition-colors flex-shrink-0"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 custom-scroll">
+              <PostGenerator form={marketingForm.form} priorityScore={marketingForm.score} />
+            </div>
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-sand-100 flex items-center justify-between flex-shrink-0">
+              <p className="text-[10px] text-ink-faint">Request submitted · AI triage in progress</p>
+              <button
+                onClick={() => setMarketingForm(null)}
+                className="text-xs font-semibold text-ink-muted hover:text-ink border border-sand-200 px-4 py-1.5 rounded-xl hover:border-sand-300 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="border-t border-sand-200 bg-paper py-4 px-6 mt-4">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between">
