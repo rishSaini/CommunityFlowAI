@@ -84,23 +84,31 @@ function AuthenticatedApp() {
   useEffect(() => {
     if (!isStaff && !isAdmin) return;
     requestsApi.list(1, 50).then((data) => {
-      const mapped: ResourceRequest[] = data.requests.map((r) => ({
-        id: r.id,
-        name: r.requestor_name,
-        eventDate: r.event_date,
-        zipCode: r.event_zip,
-        city: r.event_city,
-        county: "",
-        attendeeCount: r.estimated_attendees ?? 0,
-        needs: r.materials_requested ?? [],
-        priorityScore: r.ai_priority_score ?? 50,
-        impactLevel: r.urgency_level === "high" ? "High" : r.urgency_level === "medium" ? "Medium" : "Low",
-        tags: r.ai_tags ?? [],
-        fulfillmentMethod: r.fulfillment_type === "staff" ? "Staffed" : "Mailed",
-        aiReasoning: r.ai_summary ?? "AI triage in progress.",
-        coordinates: [-111.5, 39.5],
-        submittedAt: r.created_at ?? new Date().toISOString(),
-      }));
+      const mapped: ResourceRequest[] = data.requests.map((r) => {
+        // materials_requested may be string[] or {material_id,quantity}[]
+        const needs = (r.materials_requested ?? []).map((m) =>
+          typeof m === "string" ? m : m.material_id
+        );
+        const score = r.priority_score ?? r.ai_priority_score ?? 50;
+        const impact = score >= 70 ? "High" : score >= 40 ? "Medium" : "Low";
+        return {
+          id: r.id,
+          name: r.event_name || r.requestor_name,
+          eventDate: r.event_date,
+          zipCode: r.event_zip,
+          city: r.event_city,
+          county: "",
+          attendeeCount: r.estimated_attendees ?? 0,
+          needs,
+          priorityScore: score,
+          impactLevel: impact,
+          tags: r.ai_tags ?? [],
+          fulfillmentMethod: r.fulfillment_type === "staff" ? "Staffed" : "Mailed",
+          aiReasoning: r.ai_summary ?? "AI triage in progress.",
+          coordinates: [-111.5, 39.5],
+          submittedAt: r.created_at ?? new Date().toISOString(),
+        };
+      });
       if (mapped.length > 0) setRequests(mapped);
     }).catch(() => {
       // Keep mock data if backend unavailable

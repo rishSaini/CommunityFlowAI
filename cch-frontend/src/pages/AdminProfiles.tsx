@@ -187,7 +187,7 @@ export default function AdminProfiles() {
     try {
       if (tab === "staff") {
         const res = await employeesApi.list();
-        setEmployees(res.employees);
+        setEmployees(res);
       } else {
         const res = await requestsApi.list(1, 100);
         setRequests(res.requests);
