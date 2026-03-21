@@ -74,7 +74,9 @@ function ProgressBar({ form }: { form: FormData }) {
 }
 
 export default function InlineChatbot({ form, onAutofill }: Props) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    { id: 0, role: "bot", text: WELCOME },
+  ]);
   const [input, setInput]       = useState("");
   const [typing, setTyping]     = useState(false);
   const [highlights, setHighlights] = useState<string[]>([]);
@@ -93,8 +95,6 @@ export default function InlineChatbot({ form, onAutofill }: Props) {
         res();
       }, delay);
     }), []);
-
-  useEffect(() => { addBot(WELCOME, 400); }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
