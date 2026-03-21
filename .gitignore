@@ -1,3 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+venv/
+.venv/
+*.egg
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+.cache/
+
 # Logs
 logs
 *.log
@@ -5,20 +21,34 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment
+.env
+.env.local
+.env.*.local
 
-# Editor directories and files
+# SQLite
+*.db
+*.sqlite3
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.local
+tmp/
+.vercel/
