@@ -84,7 +84,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   useEffect(() => {
     if (!window.location.hash) pushView(view);
   }, []);
-  const [requests, setRequests]     = useState<ResourceRequest[]>(initialRequests);
+  const [requests, setRequests]     = useState<ResourceRequest[]>([]);
   const [banner, setBanner]         = useState<ResourceRequest | null>(null);
   const [mapMode, setMapMode]       = useState<"equity" | "dispatch">("dispatch");
   const [marketingForm, setMarketingForm] = useState<{ form: FormData; score: number } | null>(null);
@@ -135,10 +135,8 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
           submittedAt: r.created_at ?? new Date().toISOString(),
         };
       });
-      if (mapped.length > 0) setRequests(mapped);
-    }).catch(() => {
-      // Keep mock data if backend unavailable
-    });
+      setRequests(mapped);
+    }).catch(() => {});
   }, [isAdmin, isStaff]);
 
   const handleFormChange = useCallback((updates: Partial<FormData>) => {
@@ -159,7 +157,6 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   const handleReset = useCallback(() => setForm(EMPTY_FORM), []);
 
   const handleNewRequest = (req: ResourceRequest, submittedForm: FormData, score: number) => {
-    setRequests((p) => [req, ...p]);
     setBanner(req);
     setTimeout(() => setBanner(null), 6000);
     setMarketingForm({ form: submittedForm, score });

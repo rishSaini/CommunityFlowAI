@@ -48,66 +48,59 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
         : [...form.materials_requested, need],
     });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    setError(null);
 
-    try {
-      // Build the request payload matching the backend schema
-      const fType = form.fulfillment_type || "staff";
-      const payload = {
-        requestor_name:       form.requestor_name,
-        requestor_email:      form.requestor_email,
-        requestor_phone:      form.requestor_phone,
-        event_name:           form.event_name || form.requestor_name,
-        event_date:           form.event_date,
-        event_time:           form.event_time || null,
-        event_address:        form.event_address || null,
-        event_city:           form.event_city,
-        event_zip:            form.event_zip,
-        fulfillment_type:     fType,
-        mailing_address:      fType === "mail" ? (form.mailing_address || `${form.event_city}, UT ${form.event_zip}`) : null,
-        estimated_attendees:  parseInt(form.estimated_attendees) || null,
-        materials_requested:  form.materials_requested,
-        special_instructions: form.special_instructions || null,
-      };
+    // Build the request payload matching the backend schema
+    const fType = form.fulfillment_type || "staff";
+    const payload = {
+      requestor_name:       form.requestor_name,
+      requestor_email:      form.requestor_email,
+      requestor_phone:      form.requestor_phone,
+      event_name:           form.event_name || form.requestor_name,
+      event_date:           form.event_date,
+      event_time:           form.event_time || null,
+      event_address:        form.event_address || null,
+      event_city:           form.event_city,
+      event_zip:            form.event_zip,
+      fulfillment_type:     fType,
+      mailing_address:      fType === "mail" ? (form.mailing_address || `${form.event_city}, UT ${form.event_zip}`) : null,
+      estimated_attendees:  parseInt(form.estimated_attendees) || null,
+      materials_requested:  form.materials_requested,
+      special_instructions: form.special_instructions || null,
+    };
 
-      const response = await requestsApi.create(payload as Record<string, unknown>);
+    // Local triage — instant, no API needed
+    const triage = triageRequest({ ...form });
+    const coords = getCityCoords(form.event_city) ?? countyCoordinates[form.county] ?? [-111.5, 39.5];
 
-      // Build local ResourceRequest for the dashboard (use backend fields + triage fallback)
-      const triage = triageRequest({ ...form });
-      const coords = getCityCoords(form.event_city) ?? countyCoordinates[form.county] ?? [-111.5, 39.5];
+    const req: ResourceRequest = {
+      id:              `local-${Date.now()}`,
+      name:            form.requestor_name,
+      eventDate:       form.event_date,
+      zipCode:         form.event_zip,
+      city:            form.event_city,
+      county:          form.county,
+      attendeeCount:   parseInt(form.estimated_attendees) || 0,
+      needs:           form.materials_requested,
+      priorityScore:   triage.priorityScore,
+      impactLevel:     triage.impactLevel,
+      tags:            triage.tags,
+      fulfillmentMethod: fType === "staff" ? "Staffed" : "Mailed",
+      aiReasoning:     triage.aiReasoning,
+      coordinates:     coords as [number, number],
+      submittedAt:     new Date().toISOString(),
+    };
 
-      const req: ResourceRequest = {
-        id:              response.id,
-        name:            form.requestor_name,
-        eventDate:       form.event_date,
-        zipCode:         form.event_zip,
-        city:            form.event_city,
-        county:          form.county,
-        attendeeCount:   parseInt(form.estimated_attendees) || 0,
-        needs:           form.materials_requested,
-        priorityScore:   response.priority_score ?? triage.priorityScore,
-        impactLevel:     triage.impactLevel,
-        tags:            response.ai_tags ?? triage.tags,
-        fulfillmentMethod: form.fulfillment_type === "staff" ? "Staffed" : "Mailed",
-        aiReasoning:     response.ai_summary ?? triage.aiReasoning,
-        coordinates:     coords as [number, number],
-        submittedAt:     response.created_at ?? new Date().toISOString(),
-      };
+    // Show confirmation IMMEDIATELY
+    const snapshot = { ...form };
+    onSubmit(req, snapshot, req.priorityScore);
+    setSavedForm(snapshot);
+    setSavedScore(req.priorityScore);
+    setSubmitted(true);
 
-      const snapshot = { ...form };
-      onSubmit(req, snapshot, req.priorityScore);
-      setSavedForm(snapshot);
-      setSavedScore(req.priorityScore);
-      setSubmitted(true);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Submission failed. Please try again.";
-      setError(message);
-    } finally {
-      setSubmitting(false);
-    }
+    // Fire API call in background — user already has their confirmation
+    requestsApi.create(payload as Record<string, unknown>).catch(() => {});
   };
 
   const isValid =
@@ -142,16 +135,14 @@ export default function PartnerIntakeForm({ form, onChange, flashFields = [], on
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-ink text-base" style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: "18px" }}>
-              Request Submitted
+              Thank You for Your Submission!
             </h3>
             <p className="text-xs text-ink-muted mt-0.5">
-              Priority score: <span className="font-bold text-sage-700">{savedScore}</span> · AI triage in progress
+              Your request has been received. A team member will review it shortly.
             </p>
-            {savedForm?.requestor_phone && (
-              <p className="text-[11px] text-sage-600 mt-1 flex items-center gap-1">
-                <Phone size={10} /> SMS confirmation sent to {savedForm.requestor_phone}
-              </p>
-            )}
+            <p className="text-[11px] text-sage-600 mt-1">
+              Priority score: <span className="font-bold">{savedScore}</span> · AI triage in progress
+            </p>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-sage-700 font-semibold">
             <Sparkles size={11} /> AI-powered

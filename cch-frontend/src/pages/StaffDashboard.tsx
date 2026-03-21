@@ -57,7 +57,7 @@ export default function StaffDashboard() {
   } : null;
 
   const [profile, setProfile] = useState<StaffProfile>(authProfile ?? mockStaffProfiles[0]);
-  const [tasks, setTasks]     = useState<StaffTask[]>(mockStaffTasks);
+  const [tasks, setTasks]     = useState<StaffTask[]>([]);
   const [tab, setTab]         = useState<Tab>("tasks");
   const [statusOpen, setStatusOpen] = useState(false);
   const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
@@ -113,10 +113,8 @@ export default function StaffDashboard() {
             isShared: r.assigned_staff_id !== user?.id,
           };
         });
-      if (mapped.length > 0) setTasks(mapped);
-    }).catch(() => {
-      // Keep mock data if backend unavailable
-    });
+      setTasks(mapped);
+    }).catch(() => {});
   }, [user]);
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
