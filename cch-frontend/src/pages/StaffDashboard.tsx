@@ -191,20 +191,20 @@ export default function StaffDashboard() {
               <p className="text-sm mt-1 text-ink-faint">Check back after the next triage cycle</p>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl overflow-hidden shadow-sm">
+              {/* Active tasks */}
               {(["High", "Medium", "Low"] as const).map((priority) => {
                 const group = tasks.filter((t) => t.priority === priority && t.status !== "complete");
                 if (group.length === 0) return null;
                 return (
                   <div key={priority}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className={`w-2 h-2 ${priority === "High" ? "bg-clay-600" : priority === "Medium" ? "bg-clay-400" : "bg-sand-300"}`} />
-                      <h4 className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">
-                        {priority} Priority
-                      </h4>
-                      <span className="text-[10px] text-ink-faint">{group.length} task{group.length !== 1 ? "s" : ""}</span>
+                    <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                      <div className={`w-1.5 h-1.5 rounded-full ${priority === "High" ? "bg-clay-500" : priority === "Medium" ? "bg-clay-300" : "bg-sand-300"}`} />
+                      <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest">
+                        {priority} · {group.length} task{group.length !== 1 ? "s" : ""}
+                      </p>
                     </div>
-                    <div className="space-y-2">
+                    <div className="px-3 pb-3 space-y-2">
                       {group.map((t) => (
                         <TaskCard key={t.id} task={t} onStatusChange={handleStatusChange} />
                       ))}
@@ -213,13 +213,16 @@ export default function StaffDashboard() {
                 );
               })}
 
+              {/* Completed tasks */}
               {completed > 0 && (
-                <div>
-                  <div className="flex items-center gap-3 mb-2 pt-2 border-t border-sand-100">
-                    <div className="w-2 h-2 bg-sage-400" />
-                    <h4 className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">Completed</h4>
+                <div className="border-t border-sand-100">
+                  <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-sage-400" />
+                    <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest">
+                      Completed · {completed}
+                    </p>
                   </div>
-                  <div className="space-y-2">
+                  <div className="px-3 pb-3 space-y-2">
                     {tasks.filter((t) => t.status === "complete").map((t) => (
                       <TaskCard key={t.id} task={t} onStatusChange={handleStatusChange} />
                     ))}
