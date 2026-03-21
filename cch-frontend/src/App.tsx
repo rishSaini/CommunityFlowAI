@@ -35,15 +35,45 @@ const EMPTY_FORM: FormData = {
   special_instructions: "",
 };
 
+// ── Hash-based navigation helpers ─────────────────────────────────────────
+const VALID_VIEWS: View[] = ["intake", "dashboard", "staff", "profiles"];
+
+function getHashView(): View | null {
+  const hash = window.location.hash.replace("#", "") as View;
+  return VALID_VIEWS.includes(hash) ? hash : null;
+}
+
+function pushView(v: View) {
+  window.history.pushState(null, "", `#${v}`);
+}
+
 // ── Authenticated shell ────────────────────────────────────────────────────
 function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === "admin";
   const isStaff = user?.role === "staff";
 
-  // Default view based on role
   const defaultView: View = isAdmin ? "dashboard" : isStaff ? "staff" : "intake";
-  const [view, setView] = useState<View>(defaultView);
+
+  const [view, setViewState] = useState<View>(() => getHashView() ?? defaultView);
+
+  // Keep hash in sync when view changes programmatically
+  const setView = useCallback((v: View) => {
+    pushView(v);
+    setViewState(v);
+  }, []);
+
+  // Listen to browser back/forward
+  useEffect(() => {
+    const onPop = () => setViewState(getHashView() ?? defaultView);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [defaultView]);
+
+  // Set initial hash if missing
+  useEffect(() => {
+    if (!window.location.hash) pushView(view);
+  }, []);
   const [requests, setRequests] = useState<ResourceRequest[]>(initialRequests);
   const [banner, setBanner]     = useState<ResourceRequest | null>(null);
 
@@ -63,7 +93,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
         county: "",
         attendeeCount: r.estimated_attendees ?? 0,
         needs: r.materials_requested ?? [],
-        priorityScore: r.priority_score ?? 50,
+        priorityScore: r.ai_priority_score ?? 50,
         impactLevel: r.urgency_level === "high" ? "High" : r.urgency_level === "medium" ? "Medium" : "Low",
         tags: r.ai_tags ?? [],
         fulfillmentMethod: r.fulfillment_type === "staff" ? "Staffed" : "Mailed",
@@ -98,7 +128,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
     setRequests((p) => [req, ...p]);
     setBanner(req);
     setTimeout(() => setBanner(null), 5000);
-    setTimeout(() => setView("dashboard"), 1400);
+    setTimeout(() => setView(isAdmin ? "dashboard" : "staff"), 1400);
     setForm(EMPTY_FORM);
   };
 
@@ -108,12 +138,13 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
   const ALL_TABS: NavTab[] = [
     { id: "intake",    label: "Submit Request",  icon: FileInput       },
     { id: "dashboard", label: "Admin Dashboard", icon: LayoutDashboard, adminOnly: true },
-    { id: "staff",     label: "Staff Portal",    icon: Stethoscope,     staffOnly: false },
+    { id: "staff",     label: "Staff Portal",    icon: Stethoscope,     staffOnly: true },
     { id: "profiles",  label: "Profiles",        icon: Users,           adminOnly: true  },
   ];
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.adminOnly && !isAdmin) return false;
+    if (t.staffOnly && !isStaff && !isAdmin) return false;
     return true;
   });
 
@@ -352,7 +383,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
         )}
 
         {/* ── DASHBOARD VIEW ──────────────────────────────────────────── */}
-        {view === "dashboard" && (
+        {view === "dashboard" && isAdmin && (
           <div className="animate-fade-in space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -393,10 +424,10 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
         )}
 
         {/* ── STAFF VIEW ──────────────────────────────────────────────── */}
-        {view === "staff" && <StaffDashboard />}
+        {view === "staff" && (isStaff || isAdmin) && <StaffDashboard />}
 
         {/* ── PROFILES VIEW ───────────────────────────────────────────── */}
-        {view === "profiles" && <AdminProfiles />}
+        {view === "profiles" && isAdmin && <AdminProfiles />}
 
       </main>
 
@@ -417,6 +448,20 @@ function AppInner() {
   const { user, loading } = useAuth();
   const [guestMode, setGuestMode] = useState(false);
 
+  const enterGuest = useCallback(() => {
+    window.history.pushState(null, "", "#intake");
+    setGuestMode(true);
+  }, []);
+
+  // Back from app → login page (clear hash so login shows)
+  useEffect(() => {
+    const onPop = () => {
+      if (!window.location.hash && guestMode) setGuestMode(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [guestMode]);
+
   if (loading) {
     return (
       <div className="min-h-screen page-bg flex items-center justify-center">
@@ -431,7 +476,7 @@ function AppInner() {
   }
 
   if (!user && !guestMode) {
-    return <LoginPage onPartnerContinue={() => setGuestMode(true)} />;
+    return <LoginPage onPartnerContinue={enterGuest} />;
   }
 
   return <AuthenticatedApp onBackToHome={() => setGuestMode(false)} />;

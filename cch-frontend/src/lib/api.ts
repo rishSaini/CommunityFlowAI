@@ -62,7 +62,7 @@ export interface RequestResponse {
   status: string;
   fulfillment_type: string;
   urgency_level: string;
-  priority_score?: number;
+  ai_priority_score?: number;
   requestor_name: string;
   requestor_email: string;
   requestor_phone: string;

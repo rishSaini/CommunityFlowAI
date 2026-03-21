@@ -300,6 +300,180 @@ class StatusTrackerResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+# ── Shift Assignments (Calendar Scheduling) ──────────────
+
+class ShiftCreate(BaseModel):
+    user_id: str
+    date: str                                     # YYYY-MM-DD
+    start_time: str                               # HH:MM
+    end_time: str                                 # HH:MM
+    location_id: Optional[str] = None
+    shift_type: str = "regular"
+    request_id: Optional[str] = None
+    color: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ShiftUpdate(BaseModel):
+    user_id: Optional[str] = None
+    date: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    location_id: Optional[str] = None
+    shift_type: Optional[str] = None
+    status: Optional[str] = None
+    request_id: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ShiftBulkCreate(BaseModel):
+    shifts: list[ShiftCreate]
+
+
+class ShiftResponse(BaseModel):
+    id: str
+    user_id: str
+    user_name: str = ""
+    user_classification: Optional[str] = None
+    date: str
+    start_time: str
+    end_time: str
+    location_id: Optional[str] = None
+    location_name: Optional[str] = None
+    shift_type: str
+    status: str
+    request_id: Optional[str] = None
+    request_name: Optional[str] = None
+    color: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class GenerateScheduleRequest(BaseModel):
+    start_date: str                               # YYYY-MM-DD
+    end_date: str                                 # YYYY-MM-DD
+    user_ids: Optional[list[str]] = None
+    overwrite: bool = False
+
+
+class GenerateScheduleResponse(BaseModel):
+    created: int
+    skipped: int
+    details: Optional[str] = None
+
+
+# ── Multi-Staff Assignment ─────────────────────────────────
+
+class TeamAssignRequest(BaseModel):
+    staff_ids: list[str]
+    roles: Optional[dict[str, str]] = None        # {user_id: "primary"|"support"|"observer"}
+    notes: Optional[str] = None
+
+
+class TeamAddRequest(BaseModel):
+    staff_ids: list[str]
+    roles: Optional[dict[str, str]] = None
+    notes: Optional[str] = None
+
+
+class RequestAssignmentResponse(BaseModel):
+    id: str
+    request_id: str
+    user_id: str
+    user_name: str = ""
+    user_classification: Optional[str] = None
+    role: str
+    assigned_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Coverage & AI Schedule ──────────────────────────────────
+
+class CoverageCell(BaseModel):
+    date: str
+    hour: int
+    scheduled_count: int
+    task_count: int
+    coverage_ratio: float
+    level: str                                    # over | balanced | under | critical
+
+
+class CoverageResponse(BaseModel):
+    cells: list[CoverageCell]
+    summary: dict
+
+
+class AIScheduleSuggestion(BaseModel):
+    user_id: str
+    user_name: str
+    date: str
+    start_time: str
+    end_time: str
+    reason: str
+    confidence: float
+    fills_gap: bool
+
+
+class AIScheduleResponse(BaseModel):
+    suggestions: list[AIScheduleSuggestion]
+    narrative: str
+
+
+class AIScheduleRequest(BaseModel):
+    start_date: str
+    end_date: str
+
+
+# ── Shift Templates ─────────────────────────────────────────
+
+class ShiftTemplateCreate(BaseModel):
+    name: str
+    start_time: str
+    end_time: str
+    color: str = "#6366f1"
+
+
+class ShiftTemplateResponse(BaseModel):
+    id: str
+    name: str
+    start_time: str
+    end_time: str
+    color: str
+    is_default: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Team Calendar (combined admin response) ─────────────────
+
+class CalendarEmployeeInfo(BaseModel):
+    id: str
+    full_name: str
+    classification: Optional[str] = None
+    classification_display: Optional[str] = None
+    is_on_duty: bool
+    current_workload: int
+    max_workload: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamCalendarResponse(BaseModel):
+    shifts: list[ShiftResponse]
+    tasks: list[dict]
+    employees: list[CalendarEmployeeInfo]
+
+
+# ── Updated Dispatch (multi-staff) ──────────────────────────
+
+class DispatchAssignTeamRequest(BaseModel):
+    staff_id: str                                 # primary assignee
+    additional_staff_ids: list[str] = []          # support team
+    roles: Optional[dict[str, str]] = None
+    notes: Optional[str] = None
+
+
 # ── Urgency Override ──────────────────────────────────────
 
 class UrgencyOverrideRequest(BaseModel):
