@@ -42,10 +42,27 @@ TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
 TRAVEL_BUFFER_MINUTES = int(os.getenv("TRAVEL_BUFFER_MINUTES", "15"))
 
 # ── CORS ────────────────────────────────────────────────────
-CORS_ORIGINS = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5179,http://localhost:5180",
-).split(",")
+# In production set CORS_ORIGINS env var to your Vercel URL.
+# Default includes localhost for dev + wildcard for Vercel previews.
+_cors_env = os.getenv("CORS_ORIGINS", "")
+if _cors_env:
+    CORS_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
+else:
+    CORS_ORIGINS = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
+        "http://localhost:5177",
+        "http://localhost:5178",
+        "http://localhost:5179",
+        "http://localhost:5180",
+        "http://localhost:3000",
+    ]
+
+# If running on Railway (PORT env var set), allow all origins for demo
+if os.getenv("PORT") or os.getenv("RAILWAY_ENVIRONMENT"):
+    CORS_ORIGINS = ["*"]
 
 # ── Utah Region Lock — core.md §1 ──────────────────────────
 UTAH_CENTER_LAT = 39.3210
