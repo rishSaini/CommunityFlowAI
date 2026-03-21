@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   LayoutDashboard, FileInput, MapPin, Sparkles,
-  Bell, Globe, ChevronRight, TrendingUp, Shield,
+  Bell, Activity, ChevronRight, TrendingUp, Shield,
   Zap, ArrowRight, Stethoscope, LogOut, Users,
 } from "lucide-react";
 import PartnerIntakeForm from "./components/forms/PartnerIntakeForm";
@@ -127,7 +127,7 @@ function AuthenticatedApp() {
           {/* Brand */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="w-9 h-9 rounded-2xl bg-sage-800 flex items-center justify-center shadow-sm">
-              <Globe size={15} className="text-paper" />
+              <Activity size={15} className="text-paper" />
             </div>
             <div>
               <p className="font-semibold text-ink text-sm leading-tight tracking-tight" style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>
@@ -413,7 +413,7 @@ function AppInner() {
       <div className="min-h-screen page-bg flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-sage-800 flex items-center justify-center">
-            <Globe size={18} className="text-paper" />
+            <Activity size={18} className="text-paper" />
           </div>
           <p className="text-xs text-ink-muted">Loading…</p>
         </div>
