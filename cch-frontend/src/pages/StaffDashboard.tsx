@@ -7,6 +7,7 @@ import {
 import TaskCard from "../components/schedule/TaskCard";
 import WeeklySchedule from "../components/schedule/WeeklySchedule";
 import AvailabilityInput from "../components/schedule/AvailabilityInput";
+import EmployeePersonalCalendar from "../components/calendar/EmployeePersonalCalendar";
 import StaffTaskMap from "../components/map/StaffTaskMap";
 import { mockStaffProfiles, mockStaffTasks } from "../data/mockData";
 import { useAuth } from "../context/AuthContext";
@@ -236,16 +237,22 @@ export default function StaffDashboard() {
 
       {/* ── Schedule ───────────────────────────────────────────────────── */}
       {tab === "schedule" && (
-        <div className="animate-fade-in bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-sand-100 flex items-center gap-3">
-            <Calendar size={14} className="text-sage-600" />
-            <div>
-              <h3 className="font-semibold text-ink text-sm">Auto-Generated Schedule</h3>
-              <p className="text-[11px] text-ink-muted">4-week view · tasks assigned based on your availability</p>
+        <div className="animate-fade-in space-y-5">
+          {/* New personal calendar from API */}
+          <EmployeePersonalCalendar />
+
+          {/* Legacy 4-week view */}
+          <div className="bg-white/80 backdrop-blur-sm border border-sand-200 rounded-3xl overflow-hidden shadow-sm">
+            <div className="px-5 py-4 border-b border-sand-100 flex items-center gap-3">
+              <Calendar size={14} className="text-sage-600" />
+              <div>
+                <h3 className="font-semibold text-ink text-sm">Availability Overview</h3>
+                <p className="text-[11px] text-ink-muted">4-week view · tasks assigned based on your availability</p>
+              </div>
             </div>
-          </div>
-          <div className="p-5">
-            <WeeklySchedule tasks={tasks} availability={profile.availability} />
+            <div className="p-5">
+              <WeeklySchedule tasks={tasks} availability={profile.availability} />
+            </div>
           </div>
         </div>
       )}
@@ -260,7 +267,7 @@ export default function StaffDashboard() {
               <p className="text-[11px] text-ink-muted">Home base and all assigned task sites across Utah</p>
             </div>
           </div>
-          <div style={{ height: 500 }}>
+          <div style={{ height: 600 }}>
             <StaffTaskMap staff={profile} tasks={tasks} />
           </div>
         </div>

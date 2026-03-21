@@ -5,6 +5,8 @@ Source of truth: core.md §8.2, §8.3, §11 Step 2
 
 from datetime import date, datetime, time
 
+from sqlalchemy.orm import Session
+
 from app.models.tables import User
 
 
@@ -12,20 +14,48 @@ def is_on_shift_now(
     user: User,
     check_date: date | None = None,
     check_time: time | None = None,
+    db: Session | None = None,
 ) -> bool:
     """Return True if *user* is currently on shift.
 
-    Checks:
-    1. The user's weekly ``schedule`` for a matching day-of-week entry
-       whose start/end window covers *check_time*.
-    2. The user's ``schedule_exceptions`` for a same-day "off" entry
-       that would override the shift.
+    Priority order:
+    1. Check ``shift_assignments`` table for concrete per-date shifts (if db provided).
+       If concrete shifts exist for this date, they are authoritative — weekly
+       patterns are NOT checked.
+    2. Fall back to the user's weekly ``schedule`` JSON pattern.
+    3. An "off" ``schedule_exception`` overrides both.
     """
     now = datetime.now()
     if check_date is None:
         check_date = now.date()
     if check_time is None:
         check_time = now.time()
+
+    # ── Priority 1: Concrete shift_assignments ──────────────────
+    if db is not None:
+        from app.models.tables import ShiftAssignment
+
+        concrete_shifts = (
+            db.query(ShiftAssignment)
+            .filter(
+                ShiftAssignment.user_id == user.id,
+                ShiftAssignment.date == check_date,
+                ShiftAssignment.status.in_(["scheduled", "confirmed"]),
+            )
+            .all()
+        )
+
+        if concrete_shifts:
+            # Concrete shifts exist — they are authoritative
+            for shift in concrete_shifts:
+                start = _parse_hhmm(shift.start_time)
+                end = _parse_hhmm(shift.end_time)
+                if start and end and start <= check_time <= end:
+                    return True
+            # Concrete shifts exist but none cover now → off shift
+            return False
+
+    # ── Priority 2: Weekly schedule JSON pattern ────────────────
 
     schedule: list[dict] | None = user.schedule
     if not schedule:

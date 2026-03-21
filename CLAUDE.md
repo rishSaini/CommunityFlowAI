@@ -54,7 +54,23 @@ All docs are **living documents** — update them as code evolves. Each has a ch
 | [PHASE_6](docs/PHASE_6_GOOGLE_MAPS.md) | Google Maps | Utah-locked map, markers, routes, custom skin |
 | [PHASE_7](docs/PHASE_7_TWILIO_SCHEDULES.md) | Twilio + Schedules | SMS/voice, schedule-aware, escalation chain |
 | [PHASE_8](docs/PHASE_8_EMPLOYEE_MGMT_CONNECTORS.md) | Employee Mgmt + Connectors | Staff table, schedule manager, 9 fake connectors |
+| [CALENDAR_PLAN](docs/plans/ADMIN_CALENDAR_SCHEDULING.md) | Admin Calendar & Scheduling | Drag-drop calendar, multi-staff, AI suggestions, coverage heatmap |
 | [PHASE_9](docs/PHASE_9_ANALYTICS_POLISH.md) | Analytics + Polish | Charts, NL search, settings, mobile, demo prep |
+
+## Demo Logins
+
+| Role | Email | Password | Schedule |
+|------|-------|----------|----------|
+| Admin | `admin@cch.org` | `password123` | Mon-Fri 8-5 |
+| Dev | `dev@dev.com` | `1234` | All days |
+| Emily (FT_W2) | `emily@cch.org` | `emily` | Mon-Fri 8-5, SLC |
+| James (PT_W2) | `james@cch.org` | `james` | Mon/Wed/Fri 9-2, Provo |
+| Maria (ON_CALL) | `maria@cch.org` | `maria` | Tue/Thu 10-4, Ogden |
+| David (1099) | `david@cch.org` | `david` | Mon/Tue/Wed 8-4, St. George |
+| Ashley (VOL) | `ashley@cch.org` | `ashley` | Saturday 9-1, Logan |
+| Ryan (OUTSIDE) | `ryan@cch.org` | `ryan` | No schedule, Park City |
+
+Each employee sees only their own shifts + assigned tasks in the Staff Portal calendar.
 
 ## Development Commands
 

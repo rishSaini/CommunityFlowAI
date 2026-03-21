@@ -21,8 +21,9 @@ cch-frontend/
 │   │   ├── map/             # MapContainer, StaffMarker, RequestMarker, RouteOverlay
 │   │   ├── employees/       # EmployeeTable, EmployeeDetail, ClassificationBadge
 │   │   ├── connectors/      # ConnectorCard, SyncModal (9 fake enterprise connectors)
-│   │   ├── calendar/        # CalendarView, EventBlock, TravelBlock
-│   │   ├── schedule/        # ScheduleGrid, OnCallEditor, ExceptionManager
+│   │   ├── calendar/        # AdminTeamCalendar (drag-drop), EmployeePersonalCalendar
+│   │   ├── dispatch/        # MultiStaffAssignModal (team assignment)
+│   │   ├── schedule/        # WeeklySchedule, AvailabilityInput, TaskCard
 │   │   ├── chatbot/         # ChatbotPanel, MessageBubble, TypingIndicator
 │   │   └── layout/          # Sidebar, Header, ProtectedRoute, RoleGate
 │   ├── pages/               # Route-level page components
@@ -79,7 +80,7 @@ cch-backend/
 │   ├── auth.py              # JWT creation/validation, bcrypt, get_current_user dependency
 │   ├── models/
 │   │   ├── database.py      # SQLAlchemy engine, SessionLocal, Base
-│   │   ├── tables.py        # ORM models: User, Request, Location, Material, etc.
+│   │   ├── tables.py        # ORM models: 9 tables (User, Request, Location, Material, ShiftAssignment, etc.)
 │   │   ├── schemas.py       # Pydantic models for request/response validation
 │   │   └── enums.py         # Enums: Status, FulfillmentType, UrgencyLevel, Classification
 │   ├── routers/
@@ -90,16 +91,18 @@ cch-backend/
 │   │   ├── materials.py     # CRUD for materials catalog
 │   │   ├── analytics.py     # Aggregated stats, demand data, equity scores
 │   │   ├── search.py        # Natural language search via AI
-│   │   ├── dispatch.py      # Candidate ranking, dispatch assignment
+│   │   ├── dispatch.py      # Candidate ranking, multi-staff dispatch assignment
 │   │   ├── employees.py     # Staff management, schedules, check-in
 │   │   ├── briefs.py        # Job Brief generation and retrieval
-│   │   └── admin.py         # Admin-only operations, settings, overrides
+│   │   ├── admin.py         # Admin-only operations, settings, overrides
+│   │   └── schedule.py      # Shift CRUD, templates, coverage, AI suggestions, team assignment
 │   ├── services/
 │   │   ├── ai_service.py         # OpenRouter gateway — all LLM calls
 │   │   ├── dispatch_service.py   # 8-step dispatch algorithm
 │   │   ├── directions_service.py # Google Directions API wrapper
 │   │   ├── twilio_service.py     # SMS/voice, schedule-aware, escalation
-│   │   ├── schedule_service.py   # Shift checks, on-call rotation, exceptions
+│   │   ├── schedule_service.py   # Shift checks (concrete + pattern), on-call, exceptions
+│   │   ├── schedule_management_service.py # Shift generation, conflict detection, coverage, AI suggestions
 │   │   ├── geo_service.py        # Geocoding, Haversine, Utah bounds validation
 │   │   ├── brief_service.py      # Job Brief composition
 │   │   ├── chatbot_service.py    # Chatbot conversation management
@@ -133,3 +136,4 @@ cch-backend/
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-03-21 | Scaffold | Initial creation |
+| 2026-03-21 | Claude | Added `schedule.py` router, `schedule_management_service.py` service, `calendar/` components (AdminTeamCalendar, EmployeePersonalCalendar), `dispatch/MultiStaffAssignModal`. Updated tables.py (3 new tables), dispatch.py (multi-staff). |

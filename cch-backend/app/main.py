@@ -12,6 +12,7 @@ from app.models.database import engine, Base
 from app.routers import (
     auth_routes, requests, chatbot, locations, materials,
     dispatch, employees, briefs, analytics, search, admin,
+    schedule, notifications,
 )
 from app.services.ws_manager import manager
 
@@ -50,6 +51,8 @@ app.include_router(briefs.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(schedule.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
 
 
 # ── Health check ─────────────────────────────────────────────

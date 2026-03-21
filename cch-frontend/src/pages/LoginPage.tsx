@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function LoginPage({ onPartnerContinue }: Props) {
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const [mode, setMode]         = useState<LoginRole | null>(null);
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +23,19 @@ export default function LoginPage({ onPartnerContinue }: Props) {
     setLoading(true);
     setError(null);
     try {
-      await login(email, password);
+      const u = await login(email, password);
+      if (mode === "staff" && u.role === "admin") {
+        logout();
+        setError("This account has admin access. Use the Administrator login instead.");
+        setLoading(false);
+        return;
+      }
+      if (mode === "admin" && u.role === "staff") {
+        logout();
+        setError("This account is staff-only. Use the Staff Member login instead.");
+        setLoading(false);
+        return;
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message === "Incorrect email or password" ? "Invalid email or password." : err.message);

@@ -5,11 +5,15 @@ Public endpoints: POST /requests, GET /requests/status/{token}
 Authenticated endpoints: GET /requests, GET /requests/{request_id},
                          PATCH /requests/{request_id}/status
 """
+import asyncio
+import logging
 from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.auth import get_current_user
 from app.models.database import get_db
@@ -24,6 +28,7 @@ from app.models.schemas import (
 from app.models.tables import Request, ServiceAreaZip, User
 from app.services.ai_service import classify_request
 from app.services.geo_service import assign_nearest_location, geocode_address
+from app.services.twilio_service import send_partner_confirmation, send_partner_status_update
 from app.services.ws_manager import manager
 from app.utils.tokens import generate_status_token
 from app.utils.utah_validator import validate_coordinates, validate_zip
@@ -199,6 +204,12 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
     # Broadcast new-request event to connected dashboards
     await manager.broadcast({"type": "new_request", "request_id": new_request.id})
 
+    # Send SMS confirmation to the partner (non-blocking — never fails the request)
+    try:
+        await asyncio.to_thread(send_partner_confirmation, new_request, db)
+    except Exception as exc:
+        logger.warning("Partner confirmation SMS failed for request %s: %s", new_request.id, exc)
+
     return new_request
 
 
@@ -336,5 +347,11 @@ async def update_request_status(
         "request_id": request.id,
         "new_status": request.status,
     })
+
+    # Notify partner of status change via SMS (non-blocking)
+    try:
+        await asyncio.to_thread(send_partner_status_update, request, body.status, db)
+    except Exception as exc:
+        logger.warning("Partner status SMS failed for request %s: %s", request.id, exc)
 
     return request

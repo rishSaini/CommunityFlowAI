@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.models.database import engine, SessionLocal, Base
 from app.models.tables import (
     User, Request, Location, MaterialsCatalog, ServiceAreaZip, NotificationLog,
+    ShiftAssignment, RequestAssignment, ShiftTemplate,
 )
 from app.auth import hash_password
 
@@ -376,7 +377,7 @@ def seed_zips(db, location_map):
 
 
 def seed_users(db, location_map):
-    """Create 2 admins + 6 staff (one per classification type)."""
+    """Create 2 admins + 6 staff with unique simple logins per employee."""
     hashed_pw = hash_password("password123")
     now = datetime.now(timezone.utc)
 
@@ -429,9 +430,15 @@ def seed_users(db, location_map):
             "certifications": ["CPR", "Program Management"],
         },
 
-        # ── Staff — one per classification (core.md §8.1) ──
+        # ── Staff — unique logins: email / password = first name lowercase ──
+        # Emily:  emily@cch.org  / emily
+        # James:  james@cch.org  / james
+        # Maria:  maria@cch.org  / maria
+        # David:  david@cch.org  / david
+        # Ashley: ashley@cch.org / ashley
+        # Ryan:   ryan@cch.org   / ryan
         {
-            "email": "emily.r@cch.org", "full_name": "Emily Rodriguez",
+            "email": "emily@cch.org", "full_name": "Emily Rodriguez",
             "role": "staff",
             "classification": "FT_W2", "classification_display": "Full-Time W-2",
             "phone": "801-555-1001",
@@ -443,9 +450,10 @@ def seed_users(db, location_map):
             "current_workload": 3, "max_workload": 8,
             "hire_date": date(2023, 6, 15),
             "certifications": ["CPR", "Health Education Specialist", "Mental Health First Aid"],
+            "_password": hash_password("emily"),
         },
         {
-            "email": "james.p@cch.org", "full_name": "James Park",
+            "email": "james@cch.org", "full_name": "James Park",
             "role": "staff",
             "classification": "PT_W2", "classification_display": "Part-Time W-2",
             "phone": "801-555-1002",
@@ -457,9 +465,10 @@ def seed_users(db, location_map):
             "current_workload": 1, "max_workload": 4,
             "hire_date": date(2024, 1, 10),
             "certifications": ["CPR", "Nutrition Educator"],
+            "_password": hash_password("james"),
         },
         {
-            "email": "maria.s@cch.org", "full_name": "Maria Santos",
+            "email": "maria@cch.org", "full_name": "Maria Santos",
             "role": "staff",
             "classification": "ON_CALL", "classification_display": "On-Call",
             "phone": "801-555-1003",
@@ -475,9 +484,10 @@ def seed_users(db, location_map):
             "current_workload": 2, "max_workload": 6,
             "hire_date": date(2023, 9, 1),
             "certifications": ["CPR", "Emergency Response", "Crisis Intervention"],
+            "_password": hash_password("maria"),
         },
         {
-            "email": "david.k@cch.org", "full_name": "David Kim",
+            "email": "david@cch.org", "full_name": "David Kim",
             "role": "staff",
             "classification": "CONTRACTOR_1099",
             "classification_display": "Contractor (1099)",
@@ -490,9 +500,10 @@ def seed_users(db, location_map):
             "current_workload": 1, "max_workload": 5,
             "hire_date": date(2025, 3, 1),
             "certifications": ["Health Education Specialist"],
+            "_password": hash_password("david"),
         },
         {
-            "email": "ashley.j@cch.org", "full_name": "Ashley Johnson",
+            "email": "ashley@cch.org", "full_name": "Ashley Johnson",
             "role": "staff",
             "classification": "VOLUNTEER", "classification_display": "Volunteer",
             "phone": "435-555-1005",
@@ -503,9 +514,10 @@ def seed_users(db, location_map):
             "current_workload": 0, "max_workload": 2,
             "hire_date": date(2025, 9, 1),
             "certifications": ["CPR"],
+            "_password": hash_password("ashley"),
         },
         {
-            "email": "ryan.m@cch.org", "full_name": "Ryan Mitchell",
+            "email": "ryan@cch.org", "full_name": "Ryan Mitchell",
             "role": "staff",
             "classification": "OUTSIDE_HELP", "classification_display": "Outside Help",
             "phone": "435-555-1006",
@@ -515,6 +527,7 @@ def seed_users(db, location_map):
             "current_workload": 0, "max_workload": 1,
             "hire_date": date(2026, 1, 15),
             "certifications": [],
+            "_password": hash_password("ryan"),
         },
     ]
 
@@ -748,6 +761,319 @@ def seed_requests(db, location_map, staff_list, material_ids):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  Shift Templates, Shift Assignments, Request Assignments
+# ═══════════════════════════════════════════════════════════════
+
+CLASSIFICATION_COLORS = {
+    "FT_W2": "#3b82f6",
+    "PT_W2": "#06b6d4",
+    "ON_CALL": "#8b5cf6",
+    "CONTRACTOR_1099": "#f59e0b",
+    "VOLUNTEER": "#10b981",
+    "OUTSIDE_HELP": "#94a3b8",
+}
+
+
+def seed_shift_templates(db):
+    """Create 5 default shift templates."""
+    templates = [
+        {"name": "Morning",    "start_time": "08:00", "end_time": "13:00", "color": "#3b82f6"},
+        {"name": "Afternoon",  "start_time": "13:00", "end_time": "18:00", "color": "#8b5cf6"},
+        {"name": "Full Day",   "start_time": "08:00", "end_time": "17:00", "color": "#059669"},
+        {"name": "Evening",    "start_time": "17:00", "end_time": "22:00", "color": "#d97706"},
+        {"name": "On-Call",    "start_time": "18:00", "end_time": "06:00", "color": "#dc2626"},
+    ]
+    for t in templates:
+        db.add(ShiftTemplate(
+            id=uid(), name=t["name"],
+            start_time=t["start_time"], end_time=t["end_time"],
+            color=t["color"], is_default=True,
+        ))
+    db.flush()
+
+
+def seed_shifts(db, staff_list):
+    """Generate 2 weeks of concrete shifts from weekly patterns for demo."""
+    today = date.today()
+    # Start from the beginning of current week (Monday)
+    start = today - timedelta(days=today.weekday())
+    end = start + timedelta(days=13)  # 2 weeks
+
+    staff_users = db.query(User).filter(User.role == "staff", User.is_active.is_(True)).all()
+    count = 0
+
+    current = start
+    while current <= end:
+        day_name = current.strftime("%A").lower()
+
+        for user in staff_users:
+            schedule = user.schedule or []
+            for entry in schedule:
+                if entry.get("day", "").lower() != day_name:
+                    continue
+                start_t = entry.get("start", "")
+                end_t = entry.get("end", "")
+                if not start_t or not end_t:
+                    continue
+
+                classification = user.classification or ""
+                color = CLASSIFICATION_COLORS.get(classification, "#6366f1")
+
+                db.add(ShiftAssignment(
+                    id=uid(),
+                    user_id=user.id,
+                    date=current,
+                    start_time=start_t,
+                    end_time=end_t,
+                    location_id=entry.get("location_id"),
+                    shift_type="regular",
+                    status="scheduled",
+                    color=color,
+                ))
+                count += 1
+
+        current += timedelta(days=1)
+
+    db.flush()
+    return count
+
+
+def seed_request_assignments(db, staff_list):
+    """Create RequestAssignment rows for dispatched/in_progress requests."""
+    dispatched = db.query(Request).filter(
+        Request.status.in_(["dispatched", "in_progress"]),
+        Request.assigned_staff_id.isnot(None),
+    ).all()
+
+    count = 0
+    for req in dispatched:
+        # Primary assignment
+        db.add(RequestAssignment(
+            id=uid(),
+            request_id=req.id,
+            user_id=req.assigned_staff_id,
+            role="primary",
+        ))
+        count += 1
+
+        # ~40% of dispatched requests get a second team member
+        if random.random() < 0.4 and len(staff_list) > 1:
+            candidates = [s for s in staff_list if s["id"] != req.assigned_staff_id]
+            if candidates:
+                extra = random.choice(candidates)
+                db.add(RequestAssignment(
+                    id=uid(),
+                    request_id=req.id,
+                    user_id=extra["id"],
+                    role="support",
+                ))
+                count += 1
+
+    db.flush()
+    return count
+
+
+def seed_employee_tasks(db, location_map, staff_list, material_ids):
+    """Create hand-crafted, per-employee tasks for the demo week (Mar 16–22, 2026).
+
+    Each employee gets specific, realistic tasks that land on their scheduled
+    work days so their personal calendar looks meaningful and unique.
+    """
+    now = datetime.now(timezone.utc)
+    loc_list = [{"city": c, **v} for c, v in location_map.items()]
+
+    # Build staff lookup by classification
+    staff_by_class = {}
+    for s in staff_list:
+        staff_by_class[s["classification"]] = s
+
+    emily  = staff_by_class.get("FT_W2", {})
+    james  = staff_by_class.get("PT_W2", {})
+    maria  = staff_by_class.get("ON_CALL", {})
+    david  = staff_by_class.get("CONTRACTOR_1099", {})
+    ashley = staff_by_class.get("VOLUNTEER", {})
+    ryan   = staff_by_class.get("OUTSIDE_HELP", {})
+
+    # ── Hand-crafted tasks per employee ──────────────────────────────
+    #    (staff_dict, event_name, date, time, city, zip, lat, lng,
+    #     fulfillment, urgency, attendees, priority, status)
+
+    EMPLOYEE_TASKS = [
+        # ── EMILY (FT_W2) — Mon/Tue/Wed/Thu/Fri, SLC ──
+        (emily, "Heart Health Workshop at Mountain View Elementary",
+         date(2026, 3, 16), "10:00", "Salt Lake City", "84101", 40.758, -111.888,
+         "staff", "high", 200, 78, "dispatched"),
+        (emily, "Mental Health Awareness Day at Liberty Elementary",
+         date(2026, 3, 18), "14:00", "Salt Lake City", "84104", 40.773, -111.928,
+         "staff", "medium", 120, 62, "dispatched"),
+        (emily, "Community Health Outreach — Salt Lake City",
+         date(2026, 3, 20), "12:00", "Salt Lake City", "84101", 40.762, -111.895,
+         "staff", "high", 350, 84, "dispatched"),
+        (emily, "After-School Health Program at Sunset Ridge Middle School",
+         date(2026, 3, 24), "15:00", "Salt Lake City", "84116", 40.789, -111.908,
+         "staff", "medium", 80, 55, "approved"),
+        (emily, "Nutrition Education Program at Granite Park Junior High",
+         date(2026, 3, 26), "09:00", "Salt Lake City", "84119", 40.695, -111.935,
+         "staff", "high", 250, 71, "approved"),
+
+        # ── JAMES (PT_W2) — Mon/Wed/Fri, Provo ──
+        (james, "Material Pickup — YMCA",
+         date(2026, 3, 16), None, "Provo", "84601", 40.232, -111.661,
+         "pickup", "low", None, 25, "dispatched"),
+        (james, "Wellness Workshop at Community Center",
+         date(2026, 3, 18), "11:00", "Provo", "84601", 40.237, -111.655,
+         "staff", "medium", 60, 48, "dispatched"),
+        (james, "Nutrition Guide Distribution at Orem Library",
+         date(2026, 3, 20), "09:30", "Orem", "84057", 40.297, -111.695,
+         "staff", "low", 40, 35, "dispatched"),
+        (james, "Family Health Day at Provo Recreation Center",
+         date(2026, 3, 25), "10:00", "Provo", "84604", 40.244, -111.638,
+         "staff", "medium", 90, 52, "approved"),
+
+        # ── MARIA (ON_CALL) — Tue/Thu, Ogden ──
+        (maria, "Youth Mental Health Workshop at Ogden Library",
+         date(2026, 3, 17), "11:00", "Ogden", "84401", 41.225, -111.971,
+         "staff", "critical", 150, 91, "dispatched"),
+        (maria, "Community Wellness Night — Ogden",
+         date(2026, 3, 19), "14:00", "Ogden", "84401", 41.220, -111.978,
+         "staff", "high", 200, 76, "dispatched"),
+        (maria, "Crisis Intervention Training at Senior Center",
+         date(2026, 3, 24), "10:00", "Ogden", "84401", 41.228, -111.965,
+         "staff", "high", 30, 68, "approved"),
+
+        # ── DAVID (CONTRACTOR) — Mon/Tue/Wed, St. George ──
+        (david, "Dental Health Screening at Desert Springs Elementary",
+         date(2026, 3, 17), "10:00", "St. George", "84770", 37.098, -113.572,
+         "staff", "medium", 100, 58, "dispatched"),
+        (david, "Health Education Seminar at Family Resource Center",
+         date(2026, 3, 18), "13:00", "St. George", "84770", 37.093, -113.565,
+         "staff", "low", 45, 38, "dispatched"),
+        (david, "Substance Prevention Assembly at Canyon View High",
+         date(2026, 3, 23), "09:00", "St. George", "84770", 37.100, -113.580,
+         "staff", "high", 300, 82, "approved"),
+
+        # ── ASHLEY (VOLUNTEER) — Sat only, Logan ──
+        (ashley, "Dental Health Screening at Cedar Ridge Academy",
+         date(2026, 3, 21), "10:00", "Logan", "84321", 41.735, -111.831,
+         "staff", "medium", 75, 50, "dispatched"),
+        (ashley, "Reading & Wellness Fair at Logan Public Library",
+         date(2026, 3, 28), "09:30", "Logan", "84321", 41.740, -111.838,
+         "staff", "low", 40, 32, "approved"),
+
+        # ── RYAN (OUTSIDE_HELP) — no schedule, Park City ──
+        (ryan, "Material Pickup — Rotary Club",
+         date(2026, 3, 21), None, "Park City", "84060", 40.648, -111.500,
+         "pickup", "low", None, 15, "dispatched"),
+    ]
+
+    count = 0
+    for (staff, event_name, event_date, event_time, city, zip_code,
+         lat, lng, fulfillment, urgency, attendees, priority, status) in EMPLOYEE_TASKS:
+
+        if not staff or not staff.get("id"):
+            continue
+
+        nearest = find_nearest_location(lat, lng, loc_list)
+        travel_min = random.randint(12, 40)
+
+        req = dict(
+            id=uid(),
+            status=status,
+            fulfillment_type=fulfillment,
+            urgency_level=urgency,
+            requestor_name=random.choice(REQUESTOR_NAMES),
+            requestor_email=f"partner{count}@community.org",
+            requestor_phone=f"801-555-{random.randint(2000, 9999)}",
+            event_name=event_name,
+            event_date=event_date,
+            event_time=event_time,
+            event_city=city,
+            event_zip=zip_code,
+            event_lat=lat,
+            event_lng=lng,
+            estimated_attendees=attendees,
+            materials_requested=[
+                {"material_id": mid, "quantity": random.randint(1, 8)}
+                for mid in random.sample(material_ids, random.randint(1, 3))
+            ],
+            special_instructions=random.choice(SPECIAL_INSTRUCTIONS_POOL),
+            assigned_location_id=nearest["id"],
+            assigned_staff_id=staff["id"] if status in ("dispatched", "in_progress") else None,
+            status_tracker_token=uid(),
+            chatbot_used=False,
+            created_at=now - timedelta(days=random.randint(3, 14)),
+            updated_at=now,
+            ai_priority_score=priority,
+            priority_justification=(
+                f"Priority score {priority}/100. "
+                f"{'Urgent — event within 2 weeks.' if (event_date - date.today()).days < 14 else 'Standard timeline.'} "
+                f"{'Large audience of ' + str(attendees) + '.' if attendees and attendees >= 100 else ''}"
+            ).strip(),
+            ai_tags=random.choice(AI_TAGS_OPTIONS),
+            ai_summary=f"Request for {fulfillment} fulfillment: {event_name} in {city} on {event_date.strftime('%B %d, %Y')}.",
+            ai_classification={"fulfillment_type": fulfillment, "confidence": 0.95, "category": "community_health"},
+            ai_urgency={"level": urgency, "reasons": [f"Event in {(event_date - date.today()).days} days"], "auto_escalated": urgency == "critical"},
+            ai_flags={"incomplete": False, "inconsistent": False, "duplicate": False, "details": None},
+        )
+
+        # Dispatch data for dispatched requests
+        if status in ("dispatched", "in_progress"):
+            req.update(
+                dispatch_recommendation={
+                    "staff_id": staff["id"],
+                    "travel_time": f"{travel_min} minutes",
+                    "distance": f"{random.uniform(5, 30):.1f} miles",
+                    "classification": staff["classification"],
+                    "rationale": f"Nearest available {staff['classification_display']} with capacity.",
+                },
+                job_brief={
+                    "urgency_sentence": f"{urgency.upper()} PRIORITY — Event on {event_date.strftime('%B %d')}.",
+                    "briefing": f"Support {event_name} in {city}. {f'Prepare materials for {attendees} attendees.' if attendees else 'Confirm materials before departure.'}",
+                    "weather_note": "Check forecast closer to event date.",
+                    "traffic_tip": "Standard traffic patterns expected.",
+                },
+            )
+
+        request_obj = Request(**req)
+        db.add(request_obj)
+
+        # Create RequestAssignment
+        if status in ("dispatched", "in_progress"):
+            db.add(RequestAssignment(
+                id=uid(),
+                request_id=req["id"],
+                user_id=staff["id"],
+                role="primary",
+            ))
+
+        count += 1
+
+    # ── Multi-staff examples: add Emily as support on some of James's and Maria's tasks ──
+    james_tasks = db.query(Request).filter(
+        Request.assigned_staff_id == james.get("id"),
+        Request.status == "dispatched",
+    ).limit(1).all()
+    for jt in james_tasks:
+        if emily.get("id"):
+            db.add(RequestAssignment(
+                id=uid(), request_id=jt.id, user_id=emily["id"], role="support",
+            ))
+
+    maria_tasks = db.query(Request).filter(
+        Request.assigned_staff_id == maria.get("id"),
+        Request.status == "dispatched",
+    ).limit(1).all()
+    for mt in maria_tasks:
+        if emily.get("id"):
+            db.add(RequestAssignment(
+                id=uid(), request_id=mt.id, user_id=emily["id"], role="support",
+            ))
+
+    db.flush()
+    return count
+
+
+# ═══════════════════════════════════════════════════════════════
 #  Main
 # ═══════════════════════════════════════════════════════════════
 
@@ -775,6 +1101,18 @@ def seed():
         print("Seeding requests...")
         request_count = seed_requests(db, location_map, staff_list, material_ids)
 
+        print("Seeding shift templates...")
+        seed_shift_templates(db)
+
+        print("Seeding shift assignments (2 weeks)...")
+        shift_count = seed_shifts(db, staff_list)
+
+        print("Seeding request assignments (multi-staff)...")
+        ra_count = seed_request_assignments(db, staff_list)
+
+        print("Seeding employee-specific tasks (per-person demo data)...")
+        emp_task_count = seed_employee_tasks(db, location_map, staff_list, material_ids)
+
         db.commit()
 
         # ── Summary ──
@@ -793,19 +1131,36 @@ def seed():
             .all()
         )
 
+        template_count = db.query(ShiftTemplate).count()
+        shift_count_db = db.query(ShiftAssignment).count()
+        ra_count_db = db.query(RequestAssignment).count()
+
         print(f"\n{'=' * 55}")
         print(f"  SEED COMPLETE")
         print(f"{'=' * 55}")
-        print(f"  Locations:          {loc_count}")
-        print(f"  Materials:          {mat_count}")
-        print(f"  Service Area Zips:  {zip_count}")
-        print(f"  Users:              {user_count} ({admin_count} admins + {staff_count} staff)")
-        print(f"  Requests:           {req_count}")
-        print(f"  Classifications:    {', '.join(c[0] for c in classifications)}")
+        print(f"  Locations:             {loc_count}")
+        print(f"  Materials:             {mat_count}")
+        print(f"  Service Area Zips:     {zip_count}")
+        print(f"  Users:                 {user_count} ({admin_count} admins + {staff_count} staff)")
+        print(f"  Requests:              {req_count}")
+        print(f"  Shift Templates:       {template_count}")
+        print(f"  Shift Assignments:     {shift_count_db}")
+        print(f"  Request Assignments:   {ra_count_db}")
+        print(f"  Classifications:       {', '.join(c[0] for c in classifications)}")
+        print(f"  Employee Tasks:        {db.query(Request).filter(Request.assigned_staff_id.isnot(None)).count()} assigned")
         print(f"{'=' * 55}")
         print(f"  Database:  cch.db")
-        print(f"  Admin:     admin@cch.org / password123")
-        print(f"  Staff:     emily.r@cch.org / password123")
+        print(f"{'=' * 55}")
+        print(f"  LOGINS:")
+        print(f"  Admin:     admin@cch.org   / password123")
+        print(f"  Dev:       dev@dev.com     / 1234")
+        print(f"{'─' * 55}")
+        print(f"  Emily:     emily@cch.org   / emily     (FT_W2, Mon-Fri)")
+        print(f"  James:     james@cch.org   / james     (PT_W2, Mon/Wed/Fri)")
+        print(f"  Maria:     maria@cch.org   / maria     (ON_CALL, Tue/Thu)")
+        print(f"  David:     david@cch.org   / david     (1099, Mon/Tue/Wed)")
+        print(f"  Ashley:    ashley@cch.org  / ashley    (VOL, Saturday)")
+        print(f"  Ryan:      ryan@cch.org    / ryan      (OUTSIDE, no schedule)")
         print(f"{'=' * 55}")
 
     finally:

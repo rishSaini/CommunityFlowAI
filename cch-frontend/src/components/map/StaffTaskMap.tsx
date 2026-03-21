@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
-import { geoCentroid } from "d3-geo";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  ZoomableGroup,
+} from "react-simple-maps";
 import type { StaffProfile, StaffTask } from "../../types/index";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json";
@@ -34,96 +39,116 @@ interface TooltipData {
 
 export default function StaffTaskMap({ staff, tasks }: Props) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const [zoom, setZoom] = useState(1);
 
-  // Utah county FIPS start with 49
   const isUtah = (geo: { id?: string | number }) => String(geo.id ?? "").startsWith("49");
 
-  const projection = {
-    scale: 3200,
-    center: [-111.5, 39.5] as [number, number],
-  };
+  const handleZoomIn = () => setZoom((z) => Math.min(z * 1.4, 8));
+  const handleZoomOut = () => setZoom((z) => Math.max(z / 1.4, 1));
 
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-slate-50 to-indigo-50/30 rounded-2xl overflow-hidden">
       <ComposableMap
         projection="geoAlbersUsa"
-        projectionConfig={projection}
+        projectionConfig={{ scale: 5800 }}
         style={{ width: "100%", height: "100%" }}
       >
-        <Geographies geography={GEO_URL}>
-          {({ geographies }) =>
-            geographies.filter(isUtah).map((geo) => {
-              const centroid = geoCentroid(geo);
-              const isStaffCounty = geo.properties?.name === staff.county;
+        <ZoomableGroup
+          center={[-111.5, 39.5]}
+          zoom={zoom}
+          onMoveEnd={({ zoom: z }) => setZoom(z)}
+          minZoom={1}
+          maxZoom={8}
+        >
+          <Geographies geography={GEO_URL}>
+            {({ geographies }) =>
+              geographies.filter(isUtah).map((geo) => {
+                const isStaffCounty = geo.properties?.name === staff.county;
 
-              return (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  style={{
-                    default: {
-                      fill: isStaffCounty ? "#e0e7ff" : "#f1f5f9",
-                      stroke: "#cbd5e1",
-                      strokeWidth: 0.5,
-                      outline: "none",
-                    },
-                    hover: {
-                      fill: isStaffCounty ? "#c7d2fe" : "#e2e8f0",
-                      outline: "none",
-                    },
-                    pressed: { outline: "none" },
-                  }}
-                />
-              );
-            })
-          }
-        </Geographies>
+                return (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    style={{
+                      default: {
+                        fill: isStaffCounty ? "#e0e7ff" : "#f1f5f9",
+                        stroke: "#cbd5e1",
+                        strokeWidth: 0.5,
+                        outline: "none",
+                        cursor: "grab",
+                      },
+                      hover: {
+                        fill: isStaffCounty ? "#c7d2fe" : "#e2e8f0",
+                        outline: "none",
+                        cursor: "grab",
+                      },
+                      pressed: { outline: "none", cursor: "grabbing" },
+                    }}
+                  />
+                );
+              })
+            }
+          </Geographies>
 
-        {/* Staff home marker */}
-        <Marker coordinates={staff.coordinates}>
-          {/* Pulse ring */}
-          <circle r={14} fill="#6366f1" fillOpacity={0.15} />
-          <circle r={10} fill="#6366f1" fillOpacity={0.25} />
-          {/* Core */}
-          <circle r={6} fill="#4f46e5" stroke="white" strokeWidth={2} />
-          {/* House icon stub */}
-          <text
-            textAnchor="middle"
-            y={-14}
-            style={{ fontSize: 9, fontWeight: 700, fill: "#4338ca", fontFamily: "Inter, sans-serif" }}
-          >
-            {staff.name.split(" ")[0]}
-          </text>
-        </Marker>
-
-        {/* Task markers */}
-        {tasks.map((task) => {
-          const color = TASK_STATUS_COLOR[task.status] ?? "#94a3b8";
-          const ring  = PRIORITY_RING[task.priority] ?? "#e2e8f0";
-          return (
-            <Marker
-              key={task.id}
-              coordinates={task.coordinates}
-              onMouseEnter={(e) => {
-                const rect = (e.target as Element).closest("svg")?.getBoundingClientRect();
-                if (rect) {
-                  setTooltip({
-                    x: (e as MouseEvent).clientX - rect.left,
-                    y: (e as MouseEvent).clientY - rect.top,
-                    label: task.partnerName,
-                    sub: `${task.city} · ${task.eventDate} · ${task.attendeeCount} attendees`,
-                    color,
-                  });
-                }
-              }}
-              onMouseLeave={() => setTooltip(null)}
+          {/* Staff home marker */}
+          <Marker coordinates={staff.coordinates}>
+            <circle r={14} fill="#6366f1" fillOpacity={0.15} />
+            <circle r={10} fill="#6366f1" fillOpacity={0.25} />
+            <circle r={6} fill="#4f46e5" stroke="white" strokeWidth={2} />
+            <text
+              textAnchor="middle"
+              y={-14}
+              style={{ fontSize: 9, fontWeight: 700, fill: "#4338ca", fontFamily: "Inter, sans-serif" }}
             >
-              <circle r={11} fill={ring} stroke={color} strokeWidth={1.5} style={{ cursor: "pointer" }} />
-              <circle r={6}  fill={color} stroke="white" strokeWidth={1.5} style={{ cursor: "pointer" }} />
-            </Marker>
-          );
-        })}
+              {staff.name.split(" ")[0]}
+            </text>
+          </Marker>
+
+          {/* Task markers */}
+          {tasks.map((task) => {
+            const color = TASK_STATUS_COLOR[task.status] ?? "#94a3b8";
+            const ring  = PRIORITY_RING[task.priority] ?? "#e2e8f0";
+            return (
+              <Marker
+                key={task.id}
+                coordinates={task.coordinates}
+                onMouseEnter={(e) => {
+                  const rect = (e.target as Element).closest("svg")?.getBoundingClientRect();
+                  if (rect) {
+                    setTooltip({
+                      x: (e as MouseEvent).clientX - rect.left,
+                      y: (e as MouseEvent).clientY - rect.top,
+                      label: task.partnerName,
+                      sub: `${task.city} · ${task.eventDate} · ${task.attendeeCount} attendees`,
+                      color,
+                    });
+                  }
+                }}
+                onMouseLeave={() => setTooltip(null)}
+              >
+                <circle r={11} fill={ring} stroke={color} strokeWidth={1.5} style={{ cursor: "pointer" }} />
+                <circle r={6}  fill={color} stroke="white" strokeWidth={1.5} style={{ cursor: "pointer" }} />
+              </Marker>
+            );
+          })}
+        </ZoomableGroup>
       </ComposableMap>
+
+      {/* Zoom controls */}
+      <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+        <button
+          onClick={handleZoomIn}
+          className="w-8 h-8 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm flex items-center justify-center text-slate-600 hover:bg-white hover:text-slate-900 transition-colors text-lg font-medium"
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="w-8 h-8 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm flex items-center justify-center text-slate-600 hover:bg-white hover:text-slate-900 transition-colors text-lg font-medium"
+        >
+          −
+        </button>
+      </div>
 
       {/* Tooltip */}
       {tooltip && (

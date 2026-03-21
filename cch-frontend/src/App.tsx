@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import {
   LayoutDashboard, FileInput, MapPin, Sparkles,
   Bell, Activity, ChevronRight, TrendingUp, Shield,
-  Zap, ArrowRight, Stethoscope, LogOut, Users, X,
+  Zap, ArrowRight, Stethoscope, LogOut, Users, X, Calendar,
 } from "lucide-react";
 import PartnerIntakeForm from "./components/forms/PartnerIntakeForm";
 import InlineChatbot from "./components/chatbot/InlineChatbot";
@@ -13,13 +13,14 @@ import LiveFeed from "./components/dashboard/LiveFeed";
 import StatsPanel from "./components/analytics/StatsPanel";
 import StaffDashboard from "./pages/StaffDashboard";
 import AdminProfiles from "./pages/AdminProfiles";
+import AdminTeamCalendar from "./components/calendar/AdminTeamCalendar";
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { requestsApi } from "./lib/api";
 import { initialRequests, getCityCoords } from "./data/mockData";
 import type { ResourceRequest, FormData } from "./types/index";
 
-type View = "intake" | "dashboard" | "staff" | "profiles";
+type View = "intake" | "dashboard" | "staff" | "profiles" | "calendar";
 
 const EMPTY_FORM: FormData = {
   requestor_name: "",
@@ -84,6 +85,16 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
 
   const [form, setForm]               = useState<FormData>(EMPTY_FORM);
   const [flashFields, setFlashFields] = useState<Array<keyof FormData>>([]);
+
+  // Auto-correct view if it doesn't match the user's role
+  useEffect(() => {
+    if (!isAdmin && (view === "dashboard" || view === "profiles")) {
+      setView(isStaff ? "staff" : "intake");
+    }
+    if (!isStaff && !isAdmin && view === "staff") {
+      setView("intake");
+    }
+  }, [isAdmin, isStaff]);
 
   // Load real requests from backend on mount (admin/staff only)
   useEffect(() => {
@@ -152,6 +163,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
     { id: "intake",    label: "Submit Request",  icon: FileInput       },
     { id: "dashboard", label: "Admin Dashboard", icon: LayoutDashboard, adminOnly: true },
     { id: "staff",     label: "Staff Portal",    icon: Stethoscope,     staffOnly: true },
+    { id: "calendar",  label: "Calendar",         icon: Calendar,        adminOnly: true  },
     { id: "profiles",  label: "Profiles",        icon: Users,           adminOnly: true  },
   ];
 
@@ -466,6 +478,9 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
         {/* ── STAFF VIEW ──────────────────────────────────────────────── */}
         {view === "staff" && (isStaff || isAdmin) && <StaffDashboard />}
 
+        {/* ── CALENDAR VIEW ──────────────────────────────────────────── */}
+        {view === "calendar" && isAdmin && <AdminTeamCalendar />}
+
         {/* ── PROFILES VIEW ───────────────────────────────────────────── */}
         {view === "profiles" && isAdmin && <AdminProfiles />}
 
@@ -565,7 +580,7 @@ function AppInner() {
     return <LoginPage onPartnerContinue={enterGuest} />;
   }
 
-  return <AuthenticatedApp onBackToHome={() => setGuestMode(false)} />;
+  return <AuthenticatedApp key={user?.id ?? "guest"} onBackToHome={() => setGuestMode(false)} />;
 }
 
 export default function App() {
