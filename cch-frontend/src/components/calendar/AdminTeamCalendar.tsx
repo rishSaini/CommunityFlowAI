@@ -391,10 +391,6 @@ export default function AdminTeamCalendar() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={handleGenerate}
-            className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl bg-sage-50 text-sage-700 border border-sage-200 hover:bg-sage-100 transition-colors">
-            <Zap size={11} /> Generate Schedule
-          </button>
           <button onClick={handleAISuggest}
             className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors">
             <Sparkles size={11} /> AI Suggestions
