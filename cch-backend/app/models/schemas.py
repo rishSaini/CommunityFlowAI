@@ -210,6 +210,19 @@ class DispatchAssignRequest(BaseModel):
     staff_id: str
 
 
+class ClusterOpportunity(BaseModel):
+    """A nearby pending request that could be co-dispatched."""
+    request_id: str
+    event_name: str
+    distance_miles: float
+
+
+class DispatchResponse(BaseModel):
+    """Full dispatch response with ranked candidates and cluster opportunities."""
+    candidates: list[DispatchCandidateResponse]
+    cluster_opportunities: list[ClusterOpportunity] = []
+
+
 # ── Employees ──────────────────────────────────────────────
 
 class EmployeeCheckinRequest(BaseModel):

@@ -118,7 +118,7 @@ async def process_message(
     ]
 
     payload = {
-        "model": AI_MODELS["chatbot"],
+        "model": AI_MODELS.get("chatbot", "anthropic/claude-sonnet-4.5"),
         "temperature": 0.3,
         "max_tokens": 2000,
         "messages": openrouter_messages,

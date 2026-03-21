@@ -130,7 +130,8 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
         # Assign nearest CCH location
         assigned_location_id = assign_nearest_location(event_lat, event_lng, db)
 
-    # Fetch equity score for this zip (defaults to 50 if not in service area table)
+    # ── AI Classification (Phase 4) ─────────────────────────────
+    # Lookup equity score for this zip from service_area_zips
     service_zip = db.query(ServiceAreaZip).filter(
         ServiceAreaZip.zip_code == body.event_zip
     ).first()
@@ -140,12 +141,11 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
     prior_count = db.query(Request).filter(
         Request.requestor_email == body.requestor_email
     ).count()
-    if prior_count == 0:
-        requestor_history = "first-time"
-    elif prior_count <= 2:
-        requestor_history = "returning"
-    else:
-        requestor_history = "frequent"
+    requestor_history = (
+        "first-time" if prior_count == 0
+        else "frequent" if prior_count > 3
+        else "returning"
+    )
 
     # Run master AI classification (never raises — falls back to deterministic scoring)
     ai_result = await classify_request({
@@ -180,16 +180,16 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
         assigned_location_id=assigned_location_id,
         status_tracker_token=token,
         ai_classification=ai_result,
-        ai_tags=ai_result.get("tags"),
         ai_priority_score=ai_result.get("ai_priority_score"),
         priority_justification=ai_result.get("priority_justification"),
+        ai_summary=ai_result.get("summary"),
+        ai_tags=ai_result.get("tags"),
+        ai_flags=ai_result.get("flags"),
         ai_urgency={
             "level": ai_result.get("urgency_level"),
-            "reasons": ai_result.get("urgency_reasons"),
-            "auto_escalated": ai_result.get("auto_escalated"),
+            "reasons": ai_result.get("urgency_reasons", []),
+            "auto_escalated": ai_result.get("auto_escalated", False),
         },
-        ai_flags=ai_result.get("flags"),
-        ai_summary=ai_result.get("summary"),
     )
 
     db.add(new_request)

@@ -211,6 +211,166 @@ Running record of what was built, when, and verification results for each phase.
 
 ---
 
-## Phase 3–9: Pending
+## Phase 4: AI Integration + Priority Scoring (Prerequisite Wiring)
+
+**Date:** 2026-03-21
+**Status:** COMPLETE
+
+### Context
+
+Phase 4 services (`ai_service.py`, `scoring.py`) were built by a collaborator. The `classify_request()` function and `compute_priority_score()` existed but were not wired into the submission pipeline. We completed the wiring.
+
+### Files Modified (1)
+
+| File | Changes |
+|------|---------|
+| `cch-backend/app/routers/requests.py` | Added equity_score lookup, requestor_history lookup, classify_request() call, AI field population on Request ORM object |
+
+### Files Created by Collaborator (2)
+
+| File | Purpose |
+|------|---------|
+| `cch-backend/app/services/ai_service.py` | OpenRouter gateway: `call_ai()`, `call_ai_json()`, `classify_request()`, deterministic fallback |
+| `cch-backend/app/services/scoring.py` | Weighted priority formula: time(35%) + attendance(20%) + equity(20%) + complexity(10%) + history(10%) + flags(5%) |
+
+### Wiring Details
+
+In `requests.py` POST `/api/requests`, after geocoding and before DB write:
+1. Lookup `equity_score` from `service_area_zips` by `event_zip` (default 50.0)
+2. Count prior requests by `requestor_email` → "first-time" / "returning" / "frequent"
+3. Call `await classify_request({...})` with all request data + equity + history
+4. Populate: `urgency_level`, `ai_classification`, `ai_priority_score`, `priority_justification`, `ai_summary`, `ai_tags`, `ai_flags`, `ai_urgency`
+
+### Verification Results
+
+| Test | Result |
+|------|--------|
+| Submit request → AI classification returned | PASS (score 72, urgency "high") |
+| Equity score lookup from service_area_zips | PASS (55.0 for zip 84601) |
+| Requestor history detection | PASS ("first-time" for new email) |
+| Fallback scoring when AI unavailable | PASS (deterministic score returned) |
+| Tags extracted from special_instructions | PASS (nutrition, mental-health, etc.) |
+
+### Key Decisions
+
+1. **Fallback-first design** — `classify_request()` catches all exceptions and returns deterministic scoring via `scoring.py`. Submissions are never blocked by AI failure.
+2. **Equity score from service_area_zips** — Default 50.0 if zip not in table, so new zips don't crash.
+3. **History threshold** — 0 prior = "first-time", 1-3 = "returning", 4+ = "frequent".
+
+---
+
+## Phase 5: Dispatch Engine + Job Briefs
+
+**Date:** 2026-03-21
+**Status:** COMPLETE
+
+### Files Created (2)
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `cch-backend/app/services/dispatch_service.py` | ~278 | 8-step dispatch algorithm: schedule filter, classification restrictions, workload filter, Haversine ranking, Google Directions for top 5, scoring formula, cluster detection |
+| `cch-backend/app/services/brief_service.py` | ~260 | Job Brief generation: 7 sections (priority header, travel card, event details, materials checklist, AI briefing via OpenRouter, weather, quick actions). Persists to DB. |
+
+### Files Modified (3)
+
+| File | Changes |
+|------|---------|
+| `cch-backend/app/routers/dispatch.py` | Replaced stub with `dispatch_service.get_dispatch_candidates()`. Added brief generation on assign. Response model changed to `DispatchResponse` (candidates + clusters). |
+| `cch-backend/app/routers/briefs.py` | Added lazy brief generation on GET (auto-generates if null). Replaced regenerate stub with real `regenerate_brief()` call. Both endpoints now `async def`. |
+| `cch-backend/app/models/schemas.py` | Added `ClusterOpportunity` and `DispatchResponse` schemas |
+
+### Dispatch Algorithm (8 Steps)
+
+| Step | Action | Result |
+|------|--------|--------|
+| 1 | Query active on-duty staff | All eligible staff |
+| 2 | Schedule filter (is_on_shift_now + is_in_on_call_rotation) | Schedule-available only |
+| 3 | Classification restrictions (remove OUTSIDE_HELP, VOLUNTEER for staff events) | Role-eligible only |
+| 4 | Workload filter (current < max) | Available capacity only |
+| 5 | Haversine ranking → Google Directions for top 5 | Real travel times |
+| 6 | Score: classification_priority + (100-travel_time) - (workload*10) + equity_bonus | Ranked candidates |
+| 7 | Cluster detection: pending STAFF requests within 10mi | Multi-stop opportunities |
+| 8 | Return candidates + clusters | Full response |
+
+### Job Brief Sections
+
+| # | Section | Data Source |
+|---|---------|-------------|
+| 1 | Priority Header | request.ai_priority_score, urgency_level, URGENCY_COLORS |
+| 2 | Travel Card | Google Directions API → duration, distance, departure time, Maps deep link |
+| 3 | Event Details | Request fields: name, date, time, city, contact, attendees |
+| 4 | Materials Checklist | request.materials_requested → resolved against MaterialsCatalog table |
+| 5 | AI Briefing | OpenRouter call_ai() with job brief system prompt → 2-3 paragraph mission brief |
+| 6 | Weather | Hardcoded prototype: 72°F, Clear |
+| 7 | Quick Actions | navigate URL, tel: link, mark_arrived/mark_complete endpoints |
+
+### Verification Results
+
+| Test | Result |
+|------|--------|
+| `GET /dispatch/{id}/candidates` → ranked candidates | PASS (2 candidates, scores 170.9 and 128.8) |
+| Real Google Directions travel times | PASS (4min, 41min) |
+| OUTSIDE_HELP excluded from candidates | PASS |
+| Cluster detection (10mi radius) | PASS (4 nearby requests found) |
+| `POST /dispatch/{id}/assign` → status=dispatched | PASS |
+| Job Brief auto-generated on dispatch | PASS (all 7 sections populated) |
+| Priority Header (score + color + justification) | PASS |
+| Travel Card (4min, 1.1mi, departure 09:40, Maps link) | PASS |
+| Event Details (name, date, contact, attendees) | PASS |
+| AI Briefing (2-3 paragraph mission brief from OpenRouter) | PASS |
+| Weather (72°F, Clear — hardcoded) | PASS |
+| Quick Actions (navigate, call, status endpoints) | PASS |
+| Assigned staff can view own brief | PASS |
+| Different staff gets 403 | PASS |
+| Admin regenerate brief → new timestamp | PASS |
+| travel_info persisted in DB | PASS |
+
+### Key Decisions
+
+1. **Assignment commits BEFORE brief generation** — `POST /assign` commits status=dispatched and workload++ first, then generates brief. If AI/Google fails, assignment still stands.
+2. **Lazy brief generation on GET** — If `job_brief` is null (pre-Phase-5 data or generation failure), GET auto-generates on first access. Self-healing.
+3. **`asyncio.to_thread()` for sync Google API** — `get_travel_time()` (sync googlemaps package) is wrapped in `asyncio.to_thread()` inside async brief_service to avoid blocking.
+4. **DispatchResponse replaces list** — Breaking API change (list → object with candidates + clusters). Acceptable since no frontend consumes it yet.
+5. **Weather hardcoded** — Per spec: "can be hardcoded for prototype."
+6. **Cluster detection uses Haversine only** — No Google optimize_waypoints call (API cost). Shows opportunities, admin decides.
+
+### Stubs Remaining for Later Phases
+
+| Stub | Full Implementation |
+|------|-------------------|
+| NL search via AI | Phase 4 (remaining) |
+| Twilio SMS/voice sending | Phase 7 |
+| Google optimize_waypoints for clusters | Future enhancement |
+
+---
+
+## Sanity Check & Debugging Pass
+
+**Date:** 2026-03-21
+**Scope:** Full code audit of all 11 routers + 12 services/utilities
+
+### Bugs Found & Fixed
+
+| # | File | Issue | Severity | Fix |
+|---|------|-------|----------|-----|
+| 1 | `chatbot_service.py:121` | `AI_MODELS["chatbot"]` — KeyError if key missing | HIGH | Changed to `AI_MODELS.get("chatbot", "anthropic/claude-sonnet-4.5")` |
+| 2 | `brief_service.py:256` | `staff` could be None after DB query — AttributeError on `staff.current_lat` | HIGH | Added `if not staff: raise ValueError("Assigned staff not found")` |
+
+### Issues Reviewed & Deemed Acceptable (Hackathon Context)
+
+| Issue | Assessment |
+|-------|-----------|
+| `admin.py` notifications endpoint missing `response_model` | Returns raw dict — works fine, just missing OpenAPI docs. Not blocking. |
+| `requests.py:57` `.split()[0]` on full_name | full_name is NOT NULL in seed data and all creation paths. Edge case extremely unlikely. |
+| No email format validation on login | DB enforces uniqueness; bad emails just fail auth. Acceptable. |
+| Silent brief generation failure in dispatch assign | By design — assignment is critical, brief is nice-to-have. Logged at WARNING level. |
+| `setattr` in PATCH endpoints without field validation | Pydantic schemas already constrain fields via `model_dump(exclude_unset=True)` — only declared fields can be set. |
+| Missing DB indexes on email, created_at | SQLite with 55 rows — irrelevant for hackathon. Add when scaling. |
+| `calculate_departure_time` uses today's date context | Only computes time-of-day string (HH:MM), not full datetime. Works correctly. |
+| `CLASSIFICATION_DISPLAY` dict keyed by enum | Verified: Python str enum allows plain string lookup. `hash("FT_W2") == hash(Classification.FT_W2)`. Works correctly. |
+
+---
+
+## Phase 3, 6–9: Pending
 
 _Build logs will be added as phases are completed._
