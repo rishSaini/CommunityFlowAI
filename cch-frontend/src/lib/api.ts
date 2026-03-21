@@ -1,5 +1,5 @@
 /**
- * CCH Frontend API Service Layer
+ * CommunityFlow AI — Frontend API Service Layer
  * Connects to FastAPI backend at VITE_API_BASE
  */
 

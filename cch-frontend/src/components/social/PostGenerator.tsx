@@ -21,7 +21,7 @@ function buildInstagramCaption(form: FormData): string {
   const dateObj = new Date((form.event_date || "2026-01-01") + "T12:00:00");
   const dateStr = dateObj.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const orgName = form.event_name || form.requestor_name;
-  return `Free community health resources are coming to ${form.event_city}!\n\nJoin ${orgName} and Intermountain Community Health on ${dateStr} for a free health event featuring:\n\n${needs.filter(n => n !== "On-site Staff").map(n => `· ${n}`).join("\n")}\n\nThis event is open to everyone — no insurance or appointment needed. We're committed to bringing health equity to every corner of Utah.\n\n📍 ${form.event_city}, ${form.county} County\n👥 Serving up to ${form.estimated_attendees || "?"} community members\n\n#CommunityHealth #Utah #HealthEquity #FreeResources #${(form.county || "Utah").replace(" ", "")}Utah #PublicHealth #${(needsShort.split(",")[0] || "Health").trim().replace(/\s+/g, "")}`;
+  return `Free community health resources are coming to ${form.event_city}!\n\nJoin ${orgName} and CommunityFlow AI on ${dateStr} for a free health event featuring:\n\n${needs.filter(n => n !== "On-site Staff").map(n => `· ${n}`).join("\n")}\n\nThis event is open to everyone — no insurance or appointment needed. We're committed to bringing health equity to every corner of Utah.\n\n📍 ${form.event_city}, ${form.county} County\n👥 Serving up to ${form.estimated_attendees || "?"} community members\n\n#CommunityHealth #Utah #HealthEquity #FreeResources #${(form.county || "Utah").replace(" ", "")}Utah #PublicHealth #${(needsShort.split(",")[0] || "Health").trim().replace(/\s+/g, "")}`;
 }
 
 function buildLinkedInPost(form: FormData): string {
@@ -30,7 +30,7 @@ function buildLinkedInPost(form: FormData): string {
   const needs = form.materials_requested;
   const hasStaff = needs.includes("On-site Staff");
   const orgName = form.event_name || form.requestor_name;
-  return `We're proud to partner with Intermountain Community Health to bring free health resources directly to our community.\n\n${orgName} will be hosting a community health event on ${dateStr} in ${form.event_city}, ${form.county} County, Utah.\n\nThis event will provide:\n${needs.filter(n => n !== "On-site Staff").map(n => `  • ${n}`).join("\n")}${hasStaff ? "\n  • On-site health professionals" : ""}\n\nEstimated reach: ${parseInt(form.estimated_attendees || "0").toLocaleString()} community members.\n\n${form.county} County is among Utah's underserved regions — events like this are a critical step toward closing the health equity gap. No appointment, insurance, or referral needed.\n\nWe believe every Utahn deserves access to quality health education and resources, regardless of where they live.\n\nLearn more about CCH's community outreach program at intermountainhealthcare.org.\n\n#HealthEquity #CommunityHealth #Utah #PublicHealth #Intermountain #${(form.county || "Utah").replace(" ", "")}UT`;
+  return `We're proud to partner with CommunityFlow AI to bring free health resources directly to our community.\n\n${orgName} will be hosting a community health event on ${dateStr} in ${form.event_city}, ${form.county} County, Utah.\n\nThis event will provide:\n${needs.filter(n => n !== "On-site Staff").map(n => `  • ${n}`).join("\n")}${hasStaff ? "\n  • On-site health professionals" : ""}\n\nEstimated reach: ${parseInt(form.estimated_attendees || "0").toLocaleString()} community members.\n\n${form.county} County is among Utah's underserved regions — events like this are a critical step toward closing the health equity gap. No appointment, insurance, or referral needed.\n\nWe believe every Utahn deserves access to quality health education and resources, regardless of where they live.\n\nLearn more about CCH's community outreach program at communityflow.ai.\n\n#HealthEquity #CommunityHealth #Utah #PublicHealth #CommunityFlowAI #${(form.county || "Utah").replace(" ", "")}UT`;
 }
 
 function InstagramPreview({ form }: { form: FormData }) {
@@ -51,10 +51,10 @@ function InstagramPreview({ form }: { form: FormData }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sage-300 text-[9px] font-semibold uppercase tracking-[0.2em]">Community Health</p>
-              <p className="text-paper/30 text-[8px] uppercase tracking-widest mt-0.5">Intermountain · Utah</p>
+              <p className="text-paper/30 text-[8px] uppercase tracking-widest mt-0.5">CommunityFlow · Utah</p>
             </div>
             <div className="w-8 h-8 bg-white/10 border border-white/20 flex items-center justify-center rounded-full">
-              <span className="text-paper text-[10px] font-black">CCH</span>
+              <span className="text-paper text-[10px] font-black">CF</span>
             </div>
           </div>
 
@@ -118,7 +118,7 @@ function FlyerPreview({ form }: { form: FormData }) {
       <div ref={flyerRef} className="bg-paper border border-sand-200 max-w-[480px] mx-auto overflow-hidden shadow-sm">
         <div className="bg-sage-900 px-6 py-5">
           <p className="text-sage-300 text-[9px] uppercase tracking-[0.25em] font-semibold mb-1">
-            Intermountain Community Children's Health
+            CommunityFlow AI · Utah
           </p>
           <h1 className="text-paper text-2xl font-semibold leading-tight" style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>
             Free Community<br />Health Event
@@ -162,7 +162,7 @@ function FlyerPreview({ form }: { form: FormData }) {
           </p>
           <p className="text-xs text-ink-muted mt-0.5">No appointment, insurance, or referral required.</p>
           <p className="text-[10px] text-clay-700 font-semibold mt-3 uppercase tracking-wider">
-            Serving up to {parseInt(form.estimated_attendees || "0").toLocaleString()} attendees · intermountainhealthcare.org
+            Serving up to {parseInt(form.estimated_attendees || "0").toLocaleString()} attendees · communityflow.ai
           </p>
         </div>
       </div>

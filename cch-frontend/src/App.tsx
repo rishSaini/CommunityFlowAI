@@ -131,10 +131,10 @@ function AuthenticatedApp() {
             </div>
             <div>
               <p className="font-semibold text-ink text-sm leading-tight tracking-tight" style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>
-                Community Resource
+                CommunityFlow AI
               </p>
               <p className="text-[10px] text-ink-muted leading-tight font-medium tracking-wide uppercase">
-                Intelligence Portal · Utah
+                Health Dispatch · Utah
               </p>
             </div>
           </div>
@@ -241,7 +241,7 @@ function AuthenticatedApp() {
                 <div className="md:col-span-2 p-8 md:p-10 border-r border-white/10">
                   <div className="flex items-center gap-2 mb-5">
                     <span className="w-1.5 h-1.5 bg-sage-300 animate-pulse" />
-                    <span className="text-sage-300 text-[10px] font-semibold uppercase tracking-[0.2em]">Utah Community Health · Active</span>
+                    <span className="text-sage-300 text-[10px] font-semibold uppercase tracking-[0.2em]">CommunityFlow AI · Utah · Active</span>
                   </div>
                   <h1 className="text-4xl md:text-5xl font-semibold text-paper leading-[1.1] mb-3"
                     style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>
@@ -393,7 +393,7 @@ function AuthenticatedApp() {
 
       <footer className="border-t border-sand-200 bg-paper py-4 px-6 mt-4">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between">
-          <p className="text-xs text-ink-faint">© 2026 Community Resource Intelligence Portal · Utah</p>
+          <p className="text-xs text-ink-faint">© 2026 CommunityFlow AI · Utah</p>
           <div className="flex items-center gap-1.5 text-xs text-ink-faint">
             <Sparkles size={10} className="text-sage-400" /> Equity Engine v2.0
           </div>

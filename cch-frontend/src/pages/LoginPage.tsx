@@ -49,10 +49,10 @@ export default function LoginPage({ onPartnerContinue }: Props) {
           </div>
           <div>
             <p className="font-semibold text-ink text-sm leading-tight" style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>
-              Community Resource
+              CommunityFlow AI
             </p>
             <p className="text-[10px] text-ink-muted leading-tight font-medium tracking-wide uppercase">
-              Intelligence Portal · Utah
+              Health Dispatch · Utah
             </p>
           </div>
         </div>
@@ -164,7 +164,7 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                 <p className="text-xs text-ink-muted mb-6">
                   {mode === "admin"
                     ? "Full system access. Contact IT if you need a reset."
-                    : "Use your CCH-issued credentials."}
+                    : "Use your CommunityFlow-issued credentials."}
                 </p>
 
                 <form onSubmit={handleLogin} className="space-y-4">
