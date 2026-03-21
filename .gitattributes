@@ -1,0 +1,3 @@
+# Treat SQLite databases as binary to prevent line-ending corruption
+*.db binary
+*.sqlite3 binary

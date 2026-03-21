@@ -12,15 +12,29 @@ from app.models.database import engine, Base
 from app.routers import (
     auth_routes, requests, chatbot, locations, materials,
     dispatch, employees, briefs, analytics, search, admin,
-    schedule, notifications,
+    schedule, notifications, messages,
 )
 from app.services.ws_manager import manager
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    """Create all tables on startup."""
+    """Create tables on startup; auto-seed if database is empty."""
     Base.metadata.create_all(bind=engine)
+    # Auto-seed when no users exist (fresh clone / empty DB)
+    from app.models.database import SessionLocal
+    from app.models.tables import User
+    db = SessionLocal()
+    try:
+        if db.query(User).count() == 0:
+            db.close()
+            import subprocess, sys, pathlib
+            seed_script = pathlib.Path(__file__).resolve().parent.parent / "seed.py"
+            subprocess.run([sys.executable, str(seed_script)], check=True)
+        else:
+            db.close()
+    except Exception:
+        db.close()
     yield
 
 
@@ -53,6 +67,7 @@ app.include_router(search.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(schedule.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
+app.include_router(messages.router, prefix="/api")
 
 
 # ── Health check ─────────────────────────────────────────────
