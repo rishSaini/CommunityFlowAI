@@ -119,12 +119,18 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                     Submit a resource request or sign in to chat with your assigned CCH representative.
                   </p>
                 </div>
-                <div className="mt-8">
+                <div className="mt-8 flex flex-col gap-2">
                   <button
-                    onClick={onPartnerContinue}
+                    onClick={() => { setMode("partner"); setError(null); }}
                     className="flex items-center justify-center gap-1.5 w-full text-sm font-semibold text-white bg-sage-700 hover:bg-sage-800 px-4 py-2.5 rounded-xl transition-colors"
                   >
-                    Continue as Guest <ArrowRight size={14} />
+                    Sign In <ArrowRight size={14} />
+                  </button>
+                  <button
+                    onClick={onPartnerContinue}
+                    className="flex items-center justify-center gap-1.5 w-full text-sm font-medium text-ink-muted hover:text-ink border border-sand-200 hover:border-sand-300 bg-transparent px-4 py-2.5 rounded-xl transition-colors"
+                  >
+                    Continue as Guest
                   </button>
                 </div>
               </div>
@@ -191,19 +197,25 @@ export default function LoginPage({ onPartnerContinue }: Props) {
 
               <div className="flex-1 flex flex-col justify-center">
                 <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mb-8 ${
-                  mode === "admin" ? "bg-clay-50 border border-clay-200" : "bg-sage-50 border border-sage-200"
+                  mode === "admin" ? "bg-clay-50 border border-clay-200"
+                  : mode === "partner" ? "bg-sand-100 border border-sand-200"
+                  : "bg-sage-50 border border-sage-200"
                 }`}>
                   {mode === "admin"
                     ? <Shield size={28} className="text-clay-700" />
+                    : mode === "partner"
+                    ? <Users size={28} className="text-ink-muted" />
                     : <Stethoscope size={28} className="text-sage-700" />}
                 </div>
                 <h2 className="text-5xl md:text-6xl font-semibold text-ink leading-[1.05] mb-4"
                   style={{ fontFamily: "Cormorant Garamond, Georgia, serif" }}>
-                  {mode === "admin" ? "Admin\nPortal" : "Staff\nPortal"}
+                  {mode === "admin" ? "Admin\nPortal" : mode === "partner" ? "Partner\nPortal" : "Staff\nPortal"}
                 </h2>
                 <p className="text-ink-muted text-base leading-relaxed max-w-sm">
                   {mode === "admin"
                     ? "Full system access — requests, dispatch, analytics, and team management."
+                    : mode === "partner"
+                    ? "View your submitted requests and chat directly with your assigned CCH representative."
                     : "Your tasks, schedule, map, and availability settings — all in one place."}
                 </p>
 
@@ -211,6 +223,8 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                 {(() => {
                   const stats = mode === "admin"
                     ? [{ v: "29", l: "Counties" }, { v: "100%", l: "Coverage" }, { v: "AI", l: "Triage" }]
+                    : mode === "partner"
+                    ? [{ v: "Direct", l: "Chat" }, { v: "Live", l: "Tracking" }, { v: "AI", l: "Triage" }]
                     : [{ v: "Real-time", l: "Dispatch" }, { v: "Auto", l: "Schedule" }, { v: "GPS", l: "Routing" }];
                   return (
                     <div className="flex gap-8 mt-12">
@@ -235,6 +249,8 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                 <p className="text-sm text-ink-muted mb-8">
                   {mode === "admin"
                     ? "Use your administrator credentials."
+                    : mode === "partner"
+                    ? "Use your community partner credentials."
                     : "Use your CommunityFlow-issued credentials."}
                 </p>
 
@@ -249,7 +265,7 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder={mode === "admin" ? "admin@cch.org" : "you@cch.org"}
+                        placeholder={mode === "admin" ? "admin@cch.org" : mode === "partner" ? "you@community.org" : "you@cch.org"}
                         className={`${inputBase} pl-11`}
                         required
                       />
@@ -294,6 +310,8 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                         ? "bg-sand-100 text-ink-faint cursor-not-allowed"
                         : mode === "admin"
                           ? "bg-clay-600 text-paper hover:bg-clay-700 shadow-sm hover:-translate-y-0.5 hover:shadow-md"
+                          : mode === "partner"
+                          ? "bg-sage-700 text-paper hover:bg-sage-800 shadow-sm hover:-translate-y-0.5 hover:shadow-md"
                           : "bg-sage-800 text-paper hover:bg-sage-900 shadow-sm hover:-translate-y-0.5 hover:shadow-md"
                     }`}
                   >
@@ -306,7 +324,9 @@ export default function LoginPage({ onPartnerContinue }: Props) {
                   <p className="text-[10px] text-ink-muted font-semibold uppercase tracking-wide mb-1.5">Demo credentials</p>
                   {mode === "admin"
                     ? <p className="text-sm text-ink-muted font-mono">admin@cch.org / password123</p>
-                    : <p className="text-sm text-ink-muted font-mono">emily.r@cch.org / password123</p>}
+                    : mode === "partner"
+                    ? <p className="text-sm text-ink-muted font-mono">jennifer@community.org / jennifer</p>
+                    : <p className="text-sm text-ink-muted font-mono">emily@cch.org / emily</p>}
                 </div>
               </div>
             </div>
