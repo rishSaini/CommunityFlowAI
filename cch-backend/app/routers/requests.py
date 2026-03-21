@@ -21,7 +21,8 @@ from app.models.schemas import (
     StatusTrackerResponse,
     StatusUpdateRequest,
 )
-from app.models.tables import Request, User
+from app.models.tables import Request, ServiceAreaZip, User
+from app.services.ai_service import classify_request
 from app.services.geo_service import assign_nearest_location, geocode_address
 from app.services.ws_manager import manager
 from app.utils.tokens import generate_status_token
@@ -129,6 +130,30 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
         # Assign nearest CCH location
         assigned_location_id = assign_nearest_location(event_lat, event_lng, db)
 
+    # Fetch equity score for this zip (defaults to 50 if not in service area table)
+    service_zip = db.query(ServiceAreaZip).filter(
+        ServiceAreaZip.zip_code == body.event_zip
+    ).first()
+    equity_score = service_zip.equity_score if service_zip else 50.0
+
+    # Determine requestor history from prior submission count
+    prior_count = db.query(Request).filter(
+        Request.requestor_email == body.requestor_email
+    ).count()
+    if prior_count == 0:
+        requestor_history = "first-time"
+    elif prior_count <= 2:
+        requestor_history = "returning"
+    else:
+        requestor_history = "frequent"
+
+    # Run master AI classification (never raises — falls back to deterministic scoring)
+    ai_result = await classify_request({
+        **body.model_dump(),
+        "equity_score": equity_score,
+        "requestor_history": requestor_history,
+    })
+
     # Generate status tracker token
     token = generate_status_token()
 
@@ -136,6 +161,7 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
     new_request = Request(
         status="submitted",
         fulfillment_type=body.fulfillment_type,
+        urgency_level=ai_result.get("urgency_level", "low"),
         requestor_name=body.requestor_name,
         requestor_email=body.requestor_email,
         requestor_phone=body.requestor_phone,
@@ -153,6 +179,17 @@ async def create_request(body: RequestCreate, db: Session = Depends(get_db)):
         alt_contact=body.alt_contact,
         assigned_location_id=assigned_location_id,
         status_tracker_token=token,
+        ai_classification=ai_result,
+        ai_tags=ai_result.get("tags"),
+        ai_priority_score=ai_result.get("ai_priority_score"),
+        priority_justification=ai_result.get("priority_justification"),
+        ai_urgency={
+            "level": ai_result.get("urgency_level"),
+            "reasons": ai_result.get("urgency_reasons"),
+            "auto_escalated": ai_result.get("auto_escalated"),
+        },
+        ai_flags=ai_result.get("flags"),
+        ai_summary=ai_result.get("summary"),
     )
 
     db.add(new_request)

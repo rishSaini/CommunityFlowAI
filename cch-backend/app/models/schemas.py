@@ -80,8 +80,10 @@ class RequestResponse(BaseModel):
     alt_contact: Optional[str] = None
     assigned_location_id: Optional[str] = None
     assigned_staff_id: Optional[str] = None
+    ai_classification: Optional[dict] = None
     ai_priority_score: Optional[float] = None
     priority_justification: Optional[str] = None
+    ai_urgency: Optional[dict] = None
     ai_summary: Optional[str] = None
     ai_tags: Optional[list] = None
     ai_flags: Optional[dict] = None
