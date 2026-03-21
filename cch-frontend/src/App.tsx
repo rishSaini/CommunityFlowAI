@@ -35,15 +35,45 @@ const EMPTY_FORM: FormData = {
   special_instructions: "",
 };
 
+// ── Hash-based navigation helpers ─────────────────────────────────────────
+const VALID_VIEWS: View[] = ["intake", "dashboard", "staff", "profiles"];
+
+function getHashView(): View | null {
+  const hash = window.location.hash.replace("#", "") as View;
+  return VALID_VIEWS.includes(hash) ? hash : null;
+}
+
+function pushView(v: View) {
+  window.history.pushState(null, "", `#${v}`);
+}
+
 // ── Authenticated shell ────────────────────────────────────────────────────
 function AuthenticatedApp() {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === "admin";
   const isStaff = user?.role === "staff";
 
-  // Default view based on role
   const defaultView: View = isAdmin ? "dashboard" : isStaff ? "staff" : "intake";
-  const [view, setView] = useState<View>(defaultView);
+
+  const [view, setViewState] = useState<View>(() => getHashView() ?? defaultView);
+
+  // Keep hash in sync when view changes programmatically
+  const setView = useCallback((v: View) => {
+    pushView(v);
+    setViewState(v);
+  }, []);
+
+  // Listen to browser back/forward
+  useEffect(() => {
+    const onPop = () => setViewState(getHashView() ?? defaultView);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [defaultView]);
+
+  // Set initial hash if missing
+  useEffect(() => {
+    if (!window.location.hash) pushView(view);
+  }, []);
   const [requests, setRequests] = useState<ResourceRequest[]>(initialRequests);
   const [banner, setBanner]     = useState<ResourceRequest | null>(null);
 
@@ -409,6 +439,20 @@ function AppInner() {
   const { user, loading } = useAuth();
   const [guestMode, setGuestMode] = useState(false);
 
+  const enterGuest = useCallback(() => {
+    window.history.pushState(null, "", "#intake");
+    setGuestMode(true);
+  }, []);
+
+  // Back from app → login page (clear hash so login shows)
+  useEffect(() => {
+    const onPop = () => {
+      if (!window.location.hash && guestMode) setGuestMode(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [guestMode]);
+
   if (loading) {
     return (
       <div className="min-h-screen page-bg flex items-center justify-center">
@@ -423,7 +467,7 @@ function AppInner() {
   }
 
   if (!user && !guestMode) {
-    return <LoginPage onPartnerContinue={() => setGuestMode(true)} />;
+    return <LoginPage onPartnerContinue={enterGuest} />;
   }
 
   return <AuthenticatedApp />;
