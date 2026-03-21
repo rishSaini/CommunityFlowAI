@@ -28,7 +28,6 @@ pnpm-debug.log*
 .env.*.local
 
 # SQLite
-*.db
 *.sqlite3
 
 # Editor
