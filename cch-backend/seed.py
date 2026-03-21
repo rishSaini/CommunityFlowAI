@@ -388,7 +388,23 @@ def seed_users(db, location_map):
     pc = location_map["Park City"]
     cedar = location_map["Cedar City"]
 
+    dev_pw = hash_password("1234")
+
     users_raw = [
+        # ── Dev master login (all portals) ──
+        {
+            "email": "dev@dev.com", "full_name": "Dev Account",
+            "role": "admin", "phone": "000-000-0000",
+            "assigned_location_ids": [slc["id"]],
+            "schedule": [{"day": d, "start": "00:00", "end": "23:59",
+                          "location_id": slc["id"]}
+                         for d in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]],
+            "current_lat": 40.7608, "current_lng": -111.8910,
+            "max_workload": 99, "hire_date": date(2020, 1, 1),
+            "certifications": ["ALL"],
+            "_password": dev_pw,
+        },
+
         # ── Admins ──
         {
             "email": "admin@cch.org", "full_name": "Sarah Chen",
@@ -507,7 +523,7 @@ def seed_users(db, location_map):
         user_id = uid()
         db.add(User(
             id=user_id,
-            email=u["email"], hashed_password=hashed_pw,
+            email=u["email"], hashed_password=u.get("_password", hashed_pw),
             full_name=u["full_name"], role=u["role"],
             classification=u.get("classification"),
             classification_display=u.get("classification_display"),
