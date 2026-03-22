@@ -181,6 +181,7 @@ function AuthenticatedApp({ onBackToHome }: { onBackToHome?: () => void }) {
     if (t.staffOnly && !isStaff && !isAdmin) return false;
     if (t.partnerOnly && !isPartner) return false;
     if (t.id === "intake" && isAdmin) return false;
+    if (t.id === "staff" && isAdmin) return false;
     return true;
   });
 
