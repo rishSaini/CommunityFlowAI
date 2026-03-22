@@ -52,3 +52,4 @@ Thumbs.db
 *.local
 tmp/
 .vercel/
+cch-backend/cch.db
